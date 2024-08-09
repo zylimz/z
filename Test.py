@@ -39,14 +39,16 @@ def apply_replacements():
                         for old_text, new_text in replacements.items():
                             if old_text in run.text:
                                 run.text = run.text.replace(old_text, new_text)
-                for shape in text_frame.shapes:
-                    replace_text_in_shape(shape)  # Recursive call to handle nested shapes
+                # Handle text in nested shapes
+                for s in shape.shapes:
+                    replace_text_in_shape(s)
 
         def replace_text_in_table(table):
             for row in table.rows:
                 for cell in row.cells:
                     text_frame = cell.text_frame
-                    replace_text_in_shape(cell)  # Call to handle text in nested shapes
+                    if text_frame:
+                        replace_text_in_shape(cell)  # Call to handle text in nested shapes
                     for paragraph in text_frame.paragraphs:
                         for run in paragraph.runs:
                             for old_text, new_text in replacements.items():
@@ -55,8 +57,7 @@ def apply_replacements():
 
         for slide in prs.slides:
             for shape in slide.shapes:
-                if shape.has_text_frame:
-                    replace_text_in_shape(shape)
+                replace_text_in_shape(shape)
                 if shape.has_table:
                     replace_text_in_table(shape.table)
 
