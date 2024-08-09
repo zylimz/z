@@ -10,11 +10,10 @@ def browse_file():
     entry_file_path.insert(0, filepath)
 
 def add_default_replacements():
+    entry_replacements.delete("1.0", tk.END)
     for i in range(1, 91):
         old_text = f"SAW{i:02}"
-        new_text = replacements.get(old_text, "")
-        listbox_replacements.insert(tk.END, f"{old_text} -> {new_text}")
-        entry_replacements.insert(tk.END, f"{old_text} -> ")
+        entry_replacements.insert(tk.END, f"{old_text} -> \n")
 
 def apply_replacements():
     ppt_path = entry_file_path.get()
@@ -50,7 +49,7 @@ def apply_replacements():
         messagebox.showerror("Error", f"An error occurred: {e}")
 
 # Initialize the replacements dictionary
-replacements = {f"SAW{i:02}": "" for i in range(1, 91)}
+replacements = {}
 
 # Set up the main window
 root = tk.Tk()
