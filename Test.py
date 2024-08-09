@@ -24,6 +24,7 @@ def apply_replacements():
     try:
         prs = Presentation(ppt_path)
         replacement_lines = entry_replacements.get("1.0", tk.END).strip().splitlines()
+        replacements = {}
         for line in replacement_lines:
             if '->' in line:
                 old_text, new_text = line.split('->')
@@ -33,33 +34,30 @@ def apply_replacements():
         for slide in prs.slides:
             for shape in slide.shapes:
                 if shape.has_text_frame:
+                    # Process text frames in shapes
                     text_frame = shape.text_frame
                     for paragraph in text_frame.paragraphs:
-                        full_text = ''.join(run.text for run in paragraph.runs)
-                        for old_text, new_text in replacements.items():
-                            if old_text in full_text:
-                                print(f"Replacing '{old_text}' with '{new_text}' in paragraph")
-                                full_text = full_text.replace(old_text, new_text)
-                                
-                        # Update the paragraph runs with the replaced text
-                        for i, run in enumerate(paragraph.runs):
-                            run.text = full_text
-
+                        for run in paragraph.runs:
+                            for old_text, new_text in replacements.items():
+                                if old_text in run.text:
+                                    run.text = run.text.replace(old_text, new_text)
+                
                 if shape.has_table:
+                    # Process text in tables
                     table = shape.table
                     for row in table.rows:
                         for cell in row.cells:
-                            text_frame = cell.text_frame
-                            for paragraph in text_frame.paragraphs:
-                                full_text = ''.join(run.text for run in paragraph.runs)
-                                for old_text, new_text in replacements.items():
-                                    if old_text in full_text:
-                                        print(f"Replacing '{old_text}' with '{new_text}' in table cell")
-                                        full_text = full_text.replace(old_text, new_text)
-                                        
-                                # Update the paragraph runs with the replaced text
-                                for i, run in enumerate(paragraph.runs):
-                                    run.text = full_text
+                            if cell.text_frame:
+                                text_frame = cell.text_frame
+                                for paragraph in text_frame.paragraphs:
+                                    for run in paragraph.runs:
+                                        for old_text, new_text in replacements.items():
+                                            if old_text in run.text:
+                                                run.text = run.text.replace(old_text, new_text)
+
+                if shape.has_text_frame:
+                    # Additional processing if needed
+                    pass
 
         save_path = filedialog.asksaveasfilename(
             defaultextension=".pptx", filetypes=[("PowerPoint Files", "*.pptx")]
@@ -69,9 +67,6 @@ def apply_replacements():
             messagebox.showinfo("Success", f"Replacements applied and saved to {save_path}")
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
-
-# Initialize the replacements dictionary
-replacements = {}
 
 # Set up the main window
 root = tk.Tk()
