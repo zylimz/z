@@ -32,16 +32,7 @@ def apply_replacements():
 
         for slide in prs.slides:
             for shape in slide.shapes:
-                if shape.has_text_frame:
-                    text_frame = shape.text_frame
-                    replace_text_in_text_frame(text_frame)
-
-                if shape.has_table:
-                    table = shape.table
-                    for row in table.rows:
-                        for cell in row.cells:
-                            text_frame = cell.text_frame
-                            replace_text_in_text_frame(text_frame)
+                process_shape(shape)
 
         save_path = filedialog.asksaveasfilename(
             defaultextension=".pptx", filetypes=[("PowerPoint Files", "*.pptx")]
@@ -51,6 +42,22 @@ def apply_replacements():
             messagebox.showinfo("Success", f"Replacements applied and saved to {save_path}")
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
+
+def process_shape(shape):
+    if shape.has_text_frame:
+        text_frame = shape.text_frame
+        replace_text_in_text_frame(text_frame)
+    
+    if shape.has_table:
+        table = shape.table
+        for row in table.rows:
+            for cell in row.cells:
+                text_frame = cell.text_frame
+                replace_text_in_text_frame(text_frame)
+    
+    # Recursively process any shapes within the current shape
+    for shape in shape.shapes:
+        process_shape(shape)
 
 def replace_text_in_text_frame(text_frame):
     for paragraph in text_frame.paragraphs:
