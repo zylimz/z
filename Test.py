@@ -90,4 +90,8 @@ tk.Label(root, text="Replacement Pairs (modify as needed):").grid(row=2, column=
 entry_replacements = tk.Text(root, width=50, height=20)
 entry_replacements.grid(row=2, column=1, padx=10, pady=5)
 
-# A
+# Apply replacements button
+tk.Button(root, text="Apply Replacements", command=apply_replacements).grid(row=3, column=1, padx=10, pady=20)
+
+# Start the GUI loop
+root.mainloop()
