@@ -39,7 +39,7 @@ def apply_replacements():
                         for old_text, new_text in replacements.items():
                             if old_text in run.text:
                                 run.text = run.text.replace(old_text, new_text)
-                # Handle nested shapes within the shape
+                # Process shapes within the shape
                 for s in shape.shapes:
                     replace_text_in_shape(s)
 
