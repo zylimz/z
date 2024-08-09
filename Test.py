@@ -38,7 +38,20 @@ def apply_replacements():
                             for old_text, new_text in replacements.items():
                                 if old_text in run.text:
                                     run.text = run.text.replace(old_text, new_text)
-
+                if shape.has_table:
+                    for row in shape.table.rows:
+                        for cell in row.cells:
+                            for paragraph in cell.text_frame.paragraphs:
+                                for run in paragraph.runs:
+                                    for old_text, new_text in replacements.items():
+                                        if old_text in run.text:
+                                            run.text = run.text.replace(old_text, new_text)
+                if shape.has_text_frame:
+                    for paragraph in shape.text_frame.paragraphs:
+                        for run in paragraph.runs:
+                            for old_text, new_text in replacements.items():
+                                if old_text in run.hyperlink.address or run.hyperlink.address:
+                                    run.text = run.text.replace(old_text, new_text)
         save_path = filedialog.asksaveasfilename(
             defaultextension=".pptx", filetypes=[("PowerPoint Files", "*.pptx")]
         )
