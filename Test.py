@@ -31,33 +31,34 @@ def apply_replacements():
                 old_text, new_text = old_text.strip(), new_text.strip()
                 replacements[old_text] = new_text
 
-        for slide in prs.slides:
-            for shape in slide.shapes:
-                if shape.has_text_frame:
-                    # Process text frames in shapes
-                    text_frame = shape.text_frame
+        def replace_text_in_shape(shape):
+            if shape.has_text_frame:
+                text_frame = shape.text_frame
+                for paragraph in text_frame.paragraphs:
+                    for run in paragraph.runs:
+                        for old_text, new_text in replacements.items():
+                            if old_text in run.text:
+                                run.text = run.text.replace(old_text, new_text)
+                for shape in text_frame.shapes:
+                    replace_text_in_shape(shape)  # Recursive call to handle nested shapes
+
+        def replace_text_in_table(table):
+            for row in table.rows:
+                for cell in row.cells:
+                    text_frame = cell.text_frame
+                    replace_text_in_shape(cell)  # Call to handle text in nested shapes
                     for paragraph in text_frame.paragraphs:
                         for run in paragraph.runs:
                             for old_text, new_text in replacements.items():
                                 if old_text in run.text:
                                     run.text = run.text.replace(old_text, new_text)
-                
-                if shape.has_table:
-                    # Process text in tables
-                    table = shape.table
-                    for row in table.rows:
-                        for cell in row.cells:
-                            if cell.text_frame:
-                                text_frame = cell.text_frame
-                                for paragraph in text_frame.paragraphs:
-                                    for run in paragraph.runs:
-                                        for old_text, new_text in replacements.items():
-                                            if old_text in run.text:
-                                                run.text = run.text.replace(old_text, new_text)
 
+        for slide in prs.slides:
+            for shape in slide.shapes:
                 if shape.has_text_frame:
-                    # Additional processing if needed
-                    pass
+                    replace_text_in_shape(shape)
+                if shape.has_table:
+                    replace_text_in_table(shape.table)
 
         save_path = filedialog.asksaveasfilename(
             defaultextension=".pptx", filetypes=[("PowerPoint Files", "*.pptx")]
@@ -67,6 +68,9 @@ def apply_replacements():
             messagebox.showinfo("Success", f"Replacements applied and saved to {save_path}")
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
+
+# Initialize the replacements dictionary
+replacements = {}
 
 # Set up the main window
 root = tk.Tk()
@@ -86,8 +90,4 @@ tk.Label(root, text="Replacement Pairs (modify as needed):").grid(row=2, column=
 entry_replacements = tk.Text(root, width=50, height=20)
 entry_replacements.grid(row=2, column=1, padx=10, pady=5)
 
-# Apply replacements button
-tk.Button(root, text="Apply Replacements", command=apply_replacements).grid(row=3, column=1, padx=10, pady=20)
-
-# Start the GUI loop
-root.mainloop()
+# A
