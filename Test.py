@@ -24,41 +24,24 @@ def apply_replacements():
     try:
         prs = Presentation(ppt_path)
         replacement_lines = entry_replacements.get("1.0", tk.END).strip().splitlines()
-        replacements = {}
         for line in replacement_lines:
             if '->' in line:
                 old_text, new_text = line.split('->')
                 old_text, new_text = old_text.strip(), new_text.strip()
                 replacements[old_text] = new_text
 
-        def replace_text_in_shape(shape):
-            if shape.has_text_frame:
-                text_frame = shape.text_frame
-                for paragraph in text_frame.paragraphs:
-                    for run in paragraph.runs:
-                        for old_text, new_text in replacements.items():
-                            if old_text in run.text:
-                                run.text = run.text.replace(old_text, new_text)
-                # Process shapes within the shape
-                for s in shape.shapes:
-                    replace_text_in_shape(s)
-
-        def replace_text_in_table(table):
-            for row in table.rows:
-                for cell in row.cells:
-                    if cell.text_frame:
-                        replace_text_in_shape(cell)
-                        for paragraph in cell.text_frame.paragraphs:
-                            for run in paragraph.runs:
-                                for old_text, new_text in replacements.items():
-                                    if old_text in run.text:
-                                        run.text = run.text.replace(old_text, new_text)
-
         for slide in prs.slides:
             for shape in slide.shapes:
-                replace_text_in_shape(shape)
+                if shape.has_text_frame:
+                    text_frame = shape.text_frame
+                    replace_text_in_text_frame(text_frame)
+
                 if shape.has_table:
-                    replace_text_in_table(shape.table)
+                    table = shape.table
+                    for row in table.rows:
+                        for cell in row.cells:
+                            text_frame = cell.text_frame
+                            replace_text_in_text_frame(text_frame)
 
         save_path = filedialog.asksaveasfilename(
             defaultextension=".pptx", filetypes=[("PowerPoint Files", "*.pptx")]
@@ -68,6 +51,13 @@ def apply_replacements():
             messagebox.showinfo("Success", f"Replacements applied and saved to {save_path}")
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
+
+def replace_text_in_text_frame(text_frame):
+    for paragraph in text_frame.paragraphs:
+        for run in paragraph.runs:
+            for old_text, new_text in replacements.items():
+                if old_text in run.text:
+                    run.text = run.text.replace(old_text, new_text)
 
 # Initialize the replacements dictionary
 replacements = {}
