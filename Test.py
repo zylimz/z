@@ -35,21 +35,31 @@ def apply_replacements():
                 if shape.has_text_frame:
                     text_frame = shape.text_frame
                     for paragraph in text_frame.paragraphs:
-                        for run in paragraph.runs:
-                            for old_text, new_text in replacements.items():
-                                if old_text in run.text:
-                                    run.text = run.text.replace(old_text, new_text)
-                
+                        full_text = ''.join(run.text for run in paragraph.runs)
+                        for old_text, new_text in replacements.items():
+                            if old_text in full_text:
+                                print(f"Replacing '{old_text}' with '{new_text}' in paragraph")
+                                full_text = full_text.replace(old_text, new_text)
+                                
+                        # Update the paragraph runs with the replaced text
+                        for i, run in enumerate(paragraph.runs):
+                            run.text = full_text
+
                 if shape.has_table:
                     table = shape.table
                     for row in table.rows:
                         for cell in row.cells:
                             text_frame = cell.text_frame
                             for paragraph in text_frame.paragraphs:
-                                for run in paragraph.runs:
-                                    for old_text, new_text in replacements.items():
-                                        if old_text in run.text:
-                                            run.text = run.text.replace(old_text, new_text)
+                                full_text = ''.join(run.text for run in paragraph.runs)
+                                for old_text, new_text in replacements.items():
+                                    if old_text in full_text:
+                                        print(f"Replacing '{old_text}' with '{new_text}' in table cell")
+                                        full_text = full_text.replace(old_text, new_text)
+                                        
+                                # Update the paragraph runs with the replaced text
+                                for i, run in enumerate(paragraph.runs):
+                                    run.text = full_text
 
         save_path = filedialog.asksaveasfilename(
             defaultextension=".pptx", filetypes=[("PowerPoint Files", "*.pptx")]
