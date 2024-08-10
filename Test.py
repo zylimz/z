@@ -68,11 +68,16 @@ def process_shape(shape):
 def replace_text_in_text_frame(text_frame):
     if text_frame is not None:
         for paragraph in text_frame.paragraphs:
-            for run in paragraph.runs:
-                for old_text, new_text in replacements.items():
-                    if old_text in run.text:
-                        print(f"Replacing '{old_text}' with '{new_text}' in: {run.text}")  # Debug output
-                        run.text = run.text.replace(old_text, new_text)
+            full_text = ''.join([run.text for run in paragraph.runs])  # Combine all runs' text
+            for old_text, new_text in replacements.items():
+                if old_text in full_text:
+                    # Replace the text in the combined string
+                    full_text = full_text.replace(old_text, new_text)
+
+                    # Clear the paragraph runs and create a single run with the replaced text
+                    for run in paragraph.runs:
+                        run.text = ''  # Clear existing text
+                    paragraph.runs[0].text = full_text  # Set the first run to the new text
 
 # Initialize the replacements dictionary
 replacements = {}
