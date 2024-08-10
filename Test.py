@@ -4,12 +4,18 @@ from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 from tkinter import ttk
 
+# Global variable to store the PowerPoint presentation
+prs = None
+
 def browse_file():
+    global prs
     filepath = filedialog.askopenfilename(
         filetypes=[("PowerPoint Files", "*.pptx")]
     )
     entry_file_path.delete(0, tk.END)
     entry_file_path.insert(0, filepath)
+    if filepath:
+        prs = Presentation(filepath)
 
 def add_default_replacements():
     entry_replacements.delete("1.0", tk.END)
@@ -18,13 +24,11 @@ def add_default_replacements():
         entry_replacements.insert(tk.END, f"{old_text} -> \n")
 
 def apply_saw_replacements():
-    ppt_path = entry_file_path.get()
-    if not ppt_path:
+    if prs is None:
         messagebox.showerror("Error", "Please select a PowerPoint file.")
         return
 
     try:
-        prs = Presentation(ppt_path)
         replacement_lines = entry_replacements.get("1.0", tk.END).strip().splitlines()
         replacements.clear()
 
@@ -41,12 +45,7 @@ def apply_saw_replacements():
             for shape in slide.shapes:
                 process_shape(shape)
 
-        save_path = filedialog.asksaveasfilename(
-            defaultextension=".pptx", filetypes=[("PowerPoint Files", "*.pptx")]
-        )
-        if save_path:
-            prs.save(save_path)
-            messagebox.showinfo("Success", f"Replacements applied and saved to {save_path}")
+        messagebox.showinfo("Success", "SAW replacements applied.")
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
 
@@ -77,13 +76,11 @@ def replace_text_in_text_frame(text_frame):
                     paragraph.runs[0].text = full_text
 
 def apply_three_value_replacements():
-    ppt_path = entry_file_path.get()
-    if not ppt_path:
+    if prs is None:
         messagebox.showerror("Error", "Please select a PowerPoint file.")
         return
 
     try:
-        prs = Presentation(ppt_path)
         replacement_lines = entry_three_value_replacements.get("1.0", tk.END).strip().splitlines()
         replacement_pairs = []
 
@@ -102,12 +99,7 @@ def apply_three_value_replacements():
                     process_three_value_shape(shape, replacement_pairs[slide_index])
                 slide_index += 1
 
-        save_path = filedialog.asksaveasfilename(
-            defaultextension=".pptx", filetypes=[("PowerPoint Files", "*.pptx")]
-        )
-        if save_path:
-            prs.save(save_path)
-            messagebox.showinfo("Success", f"Three-value replacements applied and saved to {save_path}")
+        messagebox.showinfo("Success", "Three-value replacements applied.")
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
 
@@ -130,6 +122,21 @@ def replace_three_values_in_text_frame(text_frame, placeholders, replacements):
             for run in paragraph.runs:
                 run.text = ''
             paragraph.runs[0].text = full_text
+
+def save_presentation():
+    if prs is None:
+        messagebox.showerror("Error", "No presentation loaded to save.")
+        return
+
+    save_path = filedialog.asksaveasfilename(
+        defaultextension=".pptx", filetypes=[("PowerPoint Files", "*.pptx")]
+    )
+    if save_path:
+        try:
+            prs.save(save_path)
+            messagebox.showinfo("Success", f"Presentation saved to {save_path}")
+        except Exception as e:
+            messagebox.showerror("Error", f"An error occurred while saving: {e}")
 
 # Initialize the replacements dictionary
 replacements = {}
@@ -161,7 +168,7 @@ entry_replacements = tk.Text(frame_saw, width=50, height=20)
 entry_replacements.grid(row=2, column=1, padx=10, pady=5)
 
 # Apply replacements button
-tk.Button(frame_saw, text="Apply Replacements", command=apply_saw_replacements).grid(row=3, column=1, padx=10, pady=20)
+tk.Button(frame_saw, text="Apply SAW Replacements", command=apply_saw_replacements).grid(row=3, column=1, padx=10, pady=20)
 
 # Tab 2: Three-value replacements
 frame_three_values = ttk.Frame(notebook)
@@ -174,6 +181,9 @@ entry_three_value_replacements.grid(row=1, column=0, padx=10, pady=5)
 
 # Apply three-value replacements button
 tk.Button(frame_three_values, text="Apply Three-Value Replacements", command=apply_three_value_replacements).grid(row=2, column=0, padx=10, pady=20)
+
+# Separate Save button
+tk.Button(root, text="Save Presentation", command=save_presentation).pack(pady=20)
 
 # Start the GUI loop
 root.mainloop()
