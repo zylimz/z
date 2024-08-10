@@ -1,7 +1,6 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from pptx import Presentation
-from pptx.enum.shapes import MSO_SHAPE_TYPE
 
 def browse_file():
     filepath = filedialog.askopenfilename(
@@ -25,11 +24,17 @@ def apply_replacements():
     try:
         prs = Presentation(ppt_path)
         replacement_lines = entry_replacements.get("1.0", tk.END).strip().splitlines()
-        for line in replacement_lines:
+        replacements.clear()
+        
+        for i, line in enumerate(replacement_lines):
+            old_text = f"SAW{i+1:02}"
             if '->' in line:
-                old_text, new_text = line.split('->')
-                old_text, new_text = old_text.strip(), new_text.strip()
+                _, new_text = line.split('->')
+                new_text = new_text.strip()
                 replacements[old_text] = new_text
+            else:
+                # Handle the case where input line is just the replacement value
+                replacements[old_text] = line.strip()
 
         for slide in prs.slides:
             for shape in slide.shapes:
@@ -84,7 +89,7 @@ tk.Button(root, text="Browse", command=browse_file).grid(row=0, column=2, padx=1
 tk.Button(root, text="Load SAW01 to SAW90", command=add_default_replacements).grid(row=1, column=1, padx=10, pady=5)
 
 # Replacement input area
-tk.Label(root, text="Replacement Pairs (modify as needed):").grid(row=2, column=0, padx=10, pady=5)
+tk.Label(root, text="Replacement Pairs (one per line):").grid(row=2, column=0, padx=10, pady=5)
 entry_replacements = tk.Text(root, width=50, height=20)
 entry_replacements.grid(row=2, column=1, padx=10, pady=5)
 
