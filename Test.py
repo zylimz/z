@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from pptx import Presentation
+from pptx.enum.shapes import MSO_SHAPE_TYPE
 
 def browse_file():
     filepath = filedialog.askopenfilename(
@@ -25,7 +26,7 @@ def apply_replacements():
         prs = Presentation(ppt_path)
         replacement_lines = entry_replacements.get("1.0", tk.END).strip().splitlines()
         replacements.clear()
-        
+
         for i, line in enumerate(replacement_lines):
             old_text = f"SAW{i+1:02}"
             if '->' in line:
@@ -52,7 +53,7 @@ def apply_replacements():
 def process_shape(shape):
     if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
         for s in shape.shapes:
-            process_shape(s)
+            process_shape(s)  # Recursive call to handle nested groups
     elif shape.has_text_frame:
         text_frame = shape.text_frame
         replace_text_in_text_frame(text_frame)
@@ -70,6 +71,7 @@ def replace_text_in_text_frame(text_frame):
             for run in paragraph.runs:
                 for old_text, new_text in replacements.items():
                     if old_text in run.text:
+                        print(f"Replacing '{old_text}' with '{new_text}' in: {run.text}")  # Debug output
                         run.text = run.text.replace(old_text, new_text)
 
 # Initialize the replacements dictionary
