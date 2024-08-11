@@ -43,37 +43,24 @@ def apply_saw_replacements():
 
         for slide in prs.slides:
             for shape in slide.shapes:
-                process_shape(shape)
+                if shape.has_table:
+                    process_table(shape.table)
 
         messagebox.showinfo("Success", "SAW replacements applied.")
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
 
-def process_shape(shape):
-    if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
-        for s in shape.shapes:
-            process_shape(s)
-    elif shape.has_text_frame:
-        text_frame = shape.text_frame
-        replace_text_in_text_frame(text_frame)
+def process_table(table):
+    for row in table.rows:
+        for cell in row.cells:
+            replace_text_in_cell(cell)
 
-    if shape.has_table:
-        table = shape.table
-        for row in table.rows:
-            for cell in row.cells:
-                text_frame = cell.text_frame
-                replace_text_in_text_frame(text_frame)
-
-def replace_text_in_text_frame(text_frame):
-    if text_frame is not None:
-        for paragraph in text_frame.paragraphs:
-            full_text = ''.join([run.text for run in paragraph.runs])
-            for old_text, new_text in replacements.items():
-                if old_text in full_text:
-                    full_text = full_text.replace(old_text, new_text)
-                    for run in paragraph.runs:
-                        run.text = ''
-                    paragraph.runs[0].text = full_text
+def replace_text_in_cell(cell):
+    full_text = cell.text
+    for old_text, new_text in replacements.items():
+        if old_text in full_text:
+            full_text = full_text.replace(old_text, new_text)
+            cell.text = full_text
 
 def apply_three_value_replacements():
     if prs is None:
@@ -97,32 +84,26 @@ def apply_three_value_replacements():
         for slide in prs.slides:
             if slide_index < len(replacement_pairs):
                 for shape in slide.shapes:
-                    process_three_value_shape(shape, replacement_pairs[slide_index])
+                    if shape.has_table:
+                        process_three_value_table(shape.table, replacement_pairs[slide_index])
                 slide_index += 1
 
         messagebox.showinfo("Success", "Three-value replacements applied.")
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
 
-def process_three_value_shape(shape, replacement_values):
+def process_three_value_table(table, replacement_values):
     placeholders = ["30.02%", "15.34%", "83.46%"]  # The actual placeholders to be replaced
-    if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
-        for s in shape.shapes:
-            process_three_value_shape(s, replacement_values)
-    elif shape.has_text_frame:
-        text_frame = shape.text_frame
-        replace_three_values_in_text_frame(text_frame, placeholders, replacement_values)
+    for row in table.rows:
+        for cell in row.cells:
+            replace_three_values_in_cell(cell, placeholders, replacement_values)
 
-def replace_three_values_in_text_frame(text_frame, placeholders, replacements):
-    if text_frame is not None:
-        for paragraph in text_frame.paragraphs:
-            full_text = ''.join([run.text for run in paragraph.runs])
-            for i, placeholder in enumerate(placeholders):
-                if i < len(replacements) and placeholder in full_text:
-                    full_text = full_text.replace(placeholder, replacements[i])
-            for run in paragraph.runs:
-                run.text = ''
-            paragraph.runs[0].text = full_text
+def replace_three_values_in_cell(cell, placeholders, replacements):
+    full_text = cell.text
+    for i, placeholder in enumerate(placeholders):
+        if i < len(replacements) and placeholder in full_text:
+            full_text = full_text.replace(placeholder, replacements[i])
+    cell.text = full_text
 
 def save_presentation():
     if prs is None:
