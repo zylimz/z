@@ -67,15 +67,11 @@ def process_shape(shape):
 def replace_text_in_text_frame(text_frame):
     if text_frame is not None:
         for paragraph in text_frame.paragraphs:
-            full_text = ''.join([run.text for run in paragraph.runs])  # Combine all runs' text
             for old_text, new_text in replacements.items():
-                if old_text in full_text:
-                    full_text = full_text.replace(old_text, new_text)
-
-                    # Clear the paragraph runs and create a single run with the replaced text
-                    for run in paragraph.runs:
-                        run.text = ''  # Clear existing text
-                    paragraph.runs[0].text = full_text  # Set the first run to the new text
+                for run in paragraph.runs:
+                    if old_text in run.text:
+                        # Replace text while preserving formatting
+                        run.text = run.text.replace(old_text, new_text)
 
 def search_and_replace_value():
     ppt_path = entry_file_path.get()
@@ -95,19 +91,30 @@ def search_and_replace_value():
                     for row in table.rows:
                         for cell in row.cells:
                             if search_value in cell.text:
-                                replace_value = replacement_values.pop(0) if replacement_values else search_value
-                                cell.text = cell.text.replace(search_value, replace_value)
-                                # Re-add remaining replacement values to the input field
-                                entry_search_replace.delete("1.0", tk.END)
-                                entry_search_replace.insert(tk.END, "\n".join(replacement_values))
+                                text_frame = cell.text_frame
+                                for paragraph in text_frame.paragraphs:
+                                    for run in paragraph.runs:
+                                        if search_value in run.text:
+                                            # Get the index of the text to replace
+                                            start = run.text.find(search_value)
+                                            end = start + len(search_value)
+                                            # Replace the text while preserving formatting
+                                            run.text = run.text[:start] + replacement_values.pop(0) if replacement_values else run.text[:start]
+                                            run.text += run.text[end:]
+                                            # Update remaining replacements in the input field
+                                            entry_search_replace.delete("1.0", tk.END)
+                                            entry_search_replace.insert(tk.END, "\n".join(replacement_values))
+                                            break
+                                    else:
+                                        continue
+                                    break
+                            if not replacement_values:
                                 break
                         else:
                             continue
                         break
                 if not replacement_values:
                     break
-            if not replacement_values:
-                break
 
         save_path = filedialog.asksaveasfilename(
             defaultextension=".pptx", filetypes=[("PowerPoint Files", "*.pptx")]
