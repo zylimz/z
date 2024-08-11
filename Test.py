@@ -52,18 +52,12 @@ def process_shape(shape):
     if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
         for s in shape.shapes:
             process_shape(s)
-    elif shape.has_text_frame:
+    if shape.has_text_frame:
         text_frame = shape.text_frame
         replace_text_in_text_frame(text_frame)
-
     if shape.has_table:
         table = shape.table
-        for row in table.rows:
-            for cell in row.cells:
-                cell_text = cell.text.strip()
-                if cell_text in values_to_replace:
-                    index = values_to_replace.index(cell_text)
-                    cell.text = current_replacements[index]
+        replace_table_values(table)
 
 def replace_text_in_text_frame(text_frame):
     if text_frame is not None:
@@ -72,6 +66,15 @@ def replace_text_in_text_frame(text_frame):
                 for old_text, new_text in replacements.items():
                     if old_text in run.text:
                         run.text = run.text.replace(old_text, new_text)
+
+def replace_table_values(table):
+    if table is not None:
+        for row in table.rows:
+            for cell in row.cells:
+                cell_text = cell.text.strip()
+                if cell_text in values_to_replace:
+                    index = values_to_replace.index(cell_text)
+                    cell.text = current_replacements[index]
 
 def apply_table_replacements():
     ppt_path = entry_file_path.get()
@@ -101,15 +104,8 @@ def apply_table_replacements():
 
             # Process shapes on the current slide
             for shape in slide.shapes:
-                if shape.has_table:
-                    table = shape.table
-                    for row in table.rows:
-                        for cell in row.cells:
-                            cell_text = cell.text.strip()
-                            if cell_text in values_to_replace:
-                                index = values_to_replace.index(cell_text)
-                                cell.text = current_replacements[index]
-            
+                process_shape(shape)
+
             replacement_index += 1
 
         save_path = filedialog.asksaveasfilename(
