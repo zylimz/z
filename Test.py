@@ -35,7 +35,7 @@ def apply_saw_replacements():
         for i, line in enumerate(replacement_lines):
             old_text = f"SAW{i+1:02}"
             if '->' in line:
-                _, new_text = line.split('->')
+                _, new_text = line.split('->', 1)  # Limit split to 1 occurrence
                 new_text = new_text.strip()
                 replacements[old_text] = new_text
             else:
@@ -92,6 +92,7 @@ def apply_three_value_replacements():
                 messagebox.showerror("Error", "Each line must contain exactly 3 values.")
                 return
 
+        # Ensure we don't go out of bounds if there are more slides than replacement pairs
         slide_index = 0
         for slide in prs.slides:
             if slide_index < len(replacement_pairs):
@@ -117,9 +118,8 @@ def replace_three_values_in_text_frame(text_frame, placeholders, replacements):
         for paragraph in text_frame.paragraphs:
             full_text = ''.join([run.text for run in paragraph.runs])
             for i, placeholder in enumerate(placeholders):
-                if placeholder in full_text:
-                    if i < len(replacements):
-                        full_text = full_text.replace(placeholder, replacements[i])
+                if i < len(replacements) and placeholder in full_text:
+                    full_text = full_text.replace(placeholder, replacements[i])
             for run in paragraph.runs:
                 run.text = ''
             paragraph.runs[0].text = full_text
