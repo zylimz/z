@@ -3,12 +3,17 @@ from tkinter import filedialog, messagebox, ttk
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 
+# Global Presentation object
+prs = None
+
 def browse_file():
+    global prs
     filepath = filedialog.askopenfilename(
         filetypes=[("PowerPoint Files", "*.pptx")]
     )
     entry_file_path.delete(0, tk.END)
     entry_file_path.insert(0, filepath)
+    prs = Presentation(filepath)  # Load presentation into global variable
 
 def add_default_replacements():
     entry_replacements.delete("1.0", tk.END)
@@ -17,37 +22,28 @@ def add_default_replacements():
         entry_replacements.insert(tk.END, f"{old_text} -> \n")
 
 def apply_replacements():
-    ppt_path = entry_file_path.get()
-    if not ppt_path:
+    global prs
+    if not prs:
         messagebox.showerror("Error", "Please select a PowerPoint file.")
         return
 
-    try:
-        prs = Presentation(ppt_path)
-        replacement_lines = entry_replacements.get("1.0", tk.END).strip().splitlines()
-        replacements.clear()
+    replacement_lines = entry_replacements.get("1.0", tk.END).strip().splitlines()
+    replacements.clear()
 
-        for i, line in enumerate(replacement_lines):
-            old_text = f"SAW{i+1:02}"
-            if '->' in line:
-                _, new_text = line.split('->')
-                new_text = new_text.strip()
-                replacements[old_text] = new_text
-            else:
-                replacements[old_text] = line.strip()
+    for i, line in enumerate(replacement_lines):
+        old_text = f"SAW{i+1:02}"
+        if '->' in line:
+            _, new_text = line.split('->')
+            new_text = new_text.strip()
+            replacements[old_text] = new_text
+        else:
+            replacements[old_text] = line.strip()
 
-        for slide in prs.slides:
-            for shape in slide.shapes:
-                process_shape(shape)
+    for slide in prs.slides:
+        for shape in slide.shapes:
+            process_shape(shape)
 
-        save_path = filedialog.asksaveasfilename(
-            defaultextension=".pptx", filetypes=[("PowerPoint Files", "*.pptx")]
-        )
-        if save_path:
-            prs.save(save_path)
-            messagebox.showinfo("Success", f"Replacements applied and saved to {save_path}")
-    except Exception as e:
-        messagebox.showerror("Error", f"An error occurred: {e}")
+    messagebox.showinfo("Success", "Replacements applied. You can now save the changes.")
 
 def process_shape(shape):
     if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
@@ -74,55 +70,57 @@ def replace_text_in_text_frame(text_frame):
                         run.text = run.text.replace(old_text, new_text)
 
 def search_and_replace_value(search_value, entry_widget):
-    ppt_path = entry_file_path.get()
-    if not ppt_path:
+    global prs
+    if not prs:
         messagebox.showerror("Error", "Please select a PowerPoint file.")
         return
 
-    try:
-        prs = Presentation(ppt_path)
-        replacement_values = entry_widget.get("1.0", tk.END).strip().splitlines()
+    replacement_values = entry_widget.get("1.0", tk.END).strip().splitlines()
 
-        for slide in prs.slides:
-            for shape in slide.shapes:
-                if shape.has_table:
-                    table = shape.table
-                    for row in table.rows:
-                        for cell in row.cells:
-                            if search_value in cell.text:
-                                text_frame = cell.text_frame
-                                for paragraph in text_frame.paragraphs:
-                                    for run in paragraph.runs:
-                                        if search_value in run.text:
-                                            # Get the index of the text to replace
-                                            start = run.text.find(search_value)
-                                            end = start + len(search_value)
-                                            # Replace the text while preserving formatting
-                                            run.text = run.text[:start] + replacement_values.pop(0) if replacement_values else run.text[:start]
-                                            run.text += run.text[end:]
-                                            # Update remaining replacements in the input field
-                                            entry_widget.delete("1.0", tk.END)
-                                            entry_widget.insert(tk.END, "\n".join(replacement_values))
-                                            break
-                                    else:
-                                        continue
-                                    break
-                            if not replacement_values:
+    for slide in prs.slides:
+        for shape in slide.shapes:
+            if shape.has_table:
+                table = shape.table
+                for row in table.rows:
+                    for cell in row.cells:
+                        if search_value in cell.text:
+                            text_frame = cell.text_frame
+                            for paragraph in text_frame.paragraphs:
+                                for run in paragraph.runs:
+                                    if search_value in run.text:
+                                        # Get the index of the text to replace
+                                        start = run.text.find(search_value)
+                                        end = start + len(search_value)
+                                        # Replace the text while preserving formatting
+                                        run.text = run.text[:start] + replacement_values.pop(0) if replacement_values else run.text[:start]
+                                        run.text += run.text[end:]
+                                        # Update remaining replacements in the input field
+                                        entry_widget.delete("1.0", tk.END)
+                                        entry_widget.insert(tk.END, "\n".join(replacement_values))
+                                        break
+                                else:
+                                    continue
                                 break
-                        else:
-                            continue
-                        break
-                if not replacement_values:
+                        if not replacement_values:
+                            break
+                    else:
+                        continue
                     break
+            if not replacement_values:
+                break
 
-        save_path = filedialog.asksaveasfilename(
-            defaultextension=".pptx", filetypes=[("PowerPoint Files", "*.pptx")]
-        )
-        if save_path:
-            prs.save(save_path)
-            messagebox.showinfo("Success", f"Search and replacement applied and saved to {save_path}")
-    except Exception as e:
-        messagebox.showerror("Error", f"An error occurred: {e}")
+def save_presentation():
+    global prs
+    if not prs:
+        messagebox.showerror("Error", "No presentation to save. Please select and modify a PowerPoint file.")
+        return
+
+    save_path = filedialog.asksaveasfilename(
+        defaultextension=".pptx", filetypes=[("PowerPoint Files", "*.pptx")]
+    )
+    if save_path:
+        prs.save(save_path)
+        messagebox.showinfo("Success", f"Presentation saved to {save_path}")
 
 # Initialize the replacements dictionary
 replacements = {}
@@ -191,6 +189,9 @@ entry_search_replace_83.grid(row=0, column=1, padx=10, pady=5)
 
 # Apply search and replace button
 tk.Button(tab4, text="Apply Search and Replace", command=lambda: search_and_replace_value("83.07%", entry_search_replace_83)).grid(row=1, column=1, padx=10, pady=20)
+
+# Save button
+tk.Button(root, text="Save Presentation", command=save_presentation).grid(row=1, column=0, padx=10, pady=20)
 
 # Start the GUI loop
 root.mainloop()
