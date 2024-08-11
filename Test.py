@@ -61,8 +61,8 @@ def process_shape(shape):
         table = shape.table
         for row in table.rows:
             for cell in row.cells:
-                text_frame = cell.text_frame
-                replace_text_in_text_frame(text_frame)
+                if cell.text.strip() in values_to_replace:
+                    cell.text = current_replacements[values_to_replace.index(cell.text.strip())]
 
 def replace_text_in_text_frame(text_frame):
     if text_frame is not None:
@@ -87,6 +87,9 @@ def apply_table_replacements():
             messagebox.showerror("Error", "No replacement values provided.")
             return
 
+        global values_to_replace
+        global current_replacements
+
         values_to_replace = ["31.77%", "53.07%", "83.07%"]
         replacement_index = 0
 
@@ -100,8 +103,9 @@ def apply_table_replacements():
                     table = shape.table
                     for row in table.rows:
                         for cell in row.cells:
-                            if cell.text in values_to_replace:
-                                cell.text = current_replacements[values_to_replace.index(cell.text)]
+                            if cell.text.strip() in values_to_replace:
+                                index = values_to_replace.index(cell.text.strip())
+                                cell.text = current_replacements[index]
             
             replacement_index += 1
 
