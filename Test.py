@@ -74,7 +74,8 @@ def replace_table_values(table):
                 cell_text = cell.text.strip()
                 if cell_text in values_to_replace:
                     index = values_to_replace.index(cell_text)
-                    cell.text = current_replacements[index]
+                    if index < len(current_replacements):
+                        cell.text = current_replacements[index]
 
 def apply_table_replacements():
     ppt_path = entry_file_path.get()
@@ -119,22 +120,12 @@ def apply_table_replacements():
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
 
-def replace_table_values(table):
-    if table is not None:
-        for row in table.rows:
-            for cell in row.cells:
-                cell_text = cell.text.strip()
-                if cell_text in values_to_replace:
-                    index = values_to_replace.index(cell_text)
-                    cell.text = current_replacements[index]
-                    
-
 # Initialize the replacements dictionary
 replacements = {}
 
 # Set up the main window
 root = tk.Tk()
-root.title("PowerPoint Text Replacer")
+root.title("PowerPoint Replacer")
 
 # Create the Notebook (tabs)
 notebook = ttk.Notebook(root)
