@@ -105,7 +105,7 @@ def apply_three_value_replacements():
         messagebox.showerror("Error", f"An error occurred: {e}")
 
 def process_three_value_shape(shape, replacement_values):
-    placeholders = ["30.02%", "15.34%", "83.46%"]
+    placeholders = ["30.02%", "15.34%", "83.46%"]  # The actual placeholders to be replaced
     if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
         for s in shape.shapes:
             process_three_value_shape(s, replacement_values)
