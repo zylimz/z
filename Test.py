@@ -27,13 +27,12 @@ def apply_replacements():
         replacement_lines = entry_replacements.get("1.0", tk.END).strip().splitlines()
         replacements.clear()
 
-        for i, line in enumerate(replacement_lines):
-            old_text = f"SAW{i+1:02}"
+        for line in replacement_lines:
             if '->' in line:
-                _, new_text = line.split('->')
-                new_text = new_text.strip()
+                old_text, new_text = map(str.strip, line.split('->'))
                 replacements[old_text] = new_text
             else:
+                old_text = f"SAW{len(replacements) + 1:02}"
                 replacements[old_text] = line.strip()
 
         for slide in prs.slides:
@@ -61,8 +60,9 @@ def process_shape(shape):
         table = shape.table
         for row in table.rows:
             for cell in row.cells:
-                if cell.text.strip() in values_to_replace:
-                    index = values_to_replace.index(cell.text.strip())
+                cell_text = cell.text.strip()
+                if cell_text in values_to_replace:
+                    index = values_to_replace.index(cell_text)
                     cell.text = current_replacements[index]
 
 def replace_text_in_text_frame(text_frame):
@@ -105,8 +105,9 @@ def apply_table_replacements():
                     table = shape.table
                     for row in table.rows:
                         for cell in row.cells:
-                            if cell.text.strip() in values_to_replace:
-                                index = values_to_replace.index(cell.text.strip())
+                            cell_text = cell.text.strip()
+                            if cell_text in values_to_replace:
+                                index = values_to_replace.index(cell_text)
                                 cell.text = current_replacements[index]
             
             replacement_index += 1
