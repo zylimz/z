@@ -100,13 +100,15 @@ def apply_table_replacements():
         for slide in prs.slides:
             if replacement_index >= len(replacement_values):
                 break
+
             current_replacements = replacement_values[replacement_index]
+            replacement_index += 1
 
             # Process shapes on the current slide
             for shape in slide.shapes:
-                process_shape(shape)
-
-            replacement_index += 1
+                if shape.has_table:
+                    table = shape.table
+                    replace_table_values(table)
 
         save_path = filedialog.asksaveasfilename(
             defaultextension=".pptx", filetypes=[("PowerPoint Files", "*.pptx")]
@@ -116,6 +118,16 @@ def apply_table_replacements():
             messagebox.showinfo("Success", f"Table replacements applied and saved to {save_path}")
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
+
+def replace_table_values(table):
+    if table is not None:
+        for row in table.rows:
+            for cell in row.cells:
+                cell_text = cell.text.strip()
+                if cell_text in values_to_replace:
+                    index = values_to_replace.index(cell_text)
+                    cell.text = current_replacements[index]
+                    
 
 # Initialize the replacements dictionary
 replacements = {}
