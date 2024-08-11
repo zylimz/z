@@ -81,26 +81,33 @@ def apply_table_replacements():
     try:
         prs = Presentation(ppt_path)
         replacement_lines = entry_table_replacements.get("1.0", tk.END).strip().splitlines()
-        replacement_values = [line.split() for line in replacement_lines]
+        replacement_values = [line.split() for line in replacement_lines if line.strip()]
 
-        if len(replacement_values) != len(prs.slides):
-            messagebox.showerror("Error", "Number of replacement lines does not match number of slides.")
+        if not replacement_values:
+            messagebox.showerror("Error", "No replacement values provided.")
             return
 
         values_to_replace = ["31.77%", "53.07%", "83.07%"]
+        replacement_index = 0
 
-        for slide_idx, slide in enumerate(prs.slides):
-            replacement_for_slide = replacement_values[slide_idx]
-            if len(replacement_for_slide) != 3:
-                messagebox.showerror("Error", f"Line {slide_idx+1} does not contain exactly 3 replacement values.")
-                return
+        for slide in prs.slides:
             for shape in slide.shapes:
                 if shape.has_table:
                     table = shape.table
                     for row in table.rows:
                         for cell in row.cells:
                             if cell.text in values_to_replace:
-                                cell.text = replacement_for_slide[values_to_replace.index(cell.text)]
+                                if replacement_index < len(replacement_values):
+                                    cell.text = replacement_values[replacement_index][values_to_replace.index(cell.text)]
+                                    replacement_index += 1
+                                if replacement_index >= len(replacement_values):
+                                    break
+                        if replacement_index >= len(replacement_values):
+                            break
+                if replacement_index >= len(replacement_values):
+                    break
+            if replacement_index >= len(replacement_values):
+                break
 
         save_path = filedialog.asksaveasfilename(
             defaultextension=".pptx", filetypes=[("PowerPoint Files", "*.pptx")]
