@@ -73,7 +73,7 @@ def replace_text_in_text_frame(text_frame):
                         # Replace text while preserving formatting
                         run.text = run.text.replace(old_text, new_text)
 
-def search_and_replace_value():
+def search_and_replace_value(search_value, entry_widget):
     ppt_path = entry_file_path.get()
     if not ppt_path:
         messagebox.showerror("Error", "Please select a PowerPoint file.")
@@ -81,8 +81,7 @@ def search_and_replace_value():
 
     try:
         prs = Presentation(ppt_path)
-        search_value = "31.77%"
-        replacement_values = entry_search_replace.get("1.0", tk.END).strip().splitlines()
+        replacement_values = entry_widget.get("1.0", tk.END).strip().splitlines()
 
         for slide in prs.slides:
             for shape in slide.shapes:
@@ -102,8 +101,8 @@ def search_and_replace_value():
                                             run.text = run.text[:start] + replacement_values.pop(0) if replacement_values else run.text[:start]
                                             run.text += run.text[end:]
                                             # Update remaining replacements in the input field
-                                            entry_search_replace.delete("1.0", tk.END)
-                                            entry_search_replace.insert(tk.END, "\n".join(replacement_values))
+                                            entry_widget.delete("1.0", tk.END)
+                                            entry_widget.insert(tk.END, "\n".join(replacement_values))
                                             break
                                     else:
                                         continue
@@ -157,17 +156,41 @@ entry_replacements.grid(row=2, column=1, padx=10, pady=5)
 # Apply replacements button for SAW Replacements
 tk.Button(tab1, text="Apply Replacements", command=apply_replacements).grid(row=3, column=1, padx=10, pady=20)
 
-# Second tab for Search and Replace
+# Second tab for Search and Replace "31.77%"
 tab2 = ttk.Frame(notebook)
-notebook.add(tab2, text="Search and Replace")
+notebook.add(tab2, text="Replace 31.77%")
 
 # Search and replace input
 tk.Label(tab2, text="Replacement Values (one per line):").grid(row=0, column=0, padx=10, pady=5)
-entry_search_replace = tk.Text(tab2, width=50, height=20)
-entry_search_replace.grid(row=0, column=1, padx=10, pady=5)
+entry_search_replace_31 = tk.Text(tab2, width=50, height=20)
+entry_search_replace_31.grid(row=0, column=1, padx=10, pady=5)
 
 # Apply search and replace button
-tk.Button(tab2, text="Apply Search and Replace", command=search_and_replace_value).grid(row=1, column=1, padx=10, pady=20)
+tk.Button(tab2, text="Apply Search and Replace", command=lambda: search_and_replace_value("31.77%", entry_search_replace_31)).grid(row=1, column=1, padx=10, pady=20)
+
+# Third tab for Search and Replace "53.07%"
+tab3 = ttk.Frame(notebook)
+notebook.add(tab3, text="Replace 53.07%")
+
+# Search and replace input
+tk.Label(tab3, text="Replacement Values (one per line):").grid(row=0, column=0, padx=10, pady=5)
+entry_search_replace_53 = tk.Text(tab3, width=50, height=20)
+entry_search_replace_53.grid(row=0, column=1, padx=10, pady=5)
+
+# Apply search and replace button
+tk.Button(tab3, text="Apply Search and Replace", command=lambda: search_and_replace_value("53.07%", entry_search_replace_53)).grid(row=1, column=1, padx=10, pady=20)
+
+# Fourth tab for Search and Replace "83.07%"
+tab4 = ttk.Frame(notebook)
+notebook.add(tab4, text="Replace 83.07%")
+
+# Search and replace input
+tk.Label(tab4, text="Replacement Values (one per line):").grid(row=0, column=0, padx=10, pady=5)
+entry_search_replace_83 = tk.Text(tab4, width=50, height=20)
+entry_search_replace_83.grid(row=0, column=1, padx=10, pady=5)
+
+# Apply search and replace button
+tk.Button(tab4, text="Apply Search and Replace", command=lambda: search_and_replace_value("83.07%", entry_search_replace_83)).grid(row=1, column=1, padx=10, pady=20)
 
 # Start the GUI loop
 root.mainloop()
