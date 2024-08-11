@@ -3,6 +3,11 @@ from tkinter import filedialog, messagebox, ttk
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 
+# Global variables
+replacements = {}
+values_to_replace = []
+current_replacements = []
+
 def browse_file():
     filepath = filedialog.askopenfilename(
         filetypes=[("PowerPoint Files", "*.pptx")]
@@ -67,16 +72,6 @@ def replace_text_in_text_frame(text_frame):
                     if old_text in run.text:
                         run.text = run.text.replace(old_text, new_text)
 
-def replace_table_values(table):
-    if table is not None:
-        for row in table.rows:
-            for cell in row.cells:
-                cell_text = cell.text.strip()
-                if cell_text in values_to_replace:
-                    index = values_to_replace.index(cell_text)
-                    if index < len(current_replacements):
-                        cell.text = current_replacements[index]
-
 def apply_table_replacements():
     ppt_path = entry_file_path.get()
     if not ppt_path:
@@ -120,8 +115,18 @@ def apply_table_replacements():
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
 
-# Initialize the replacements dictionary
-replacements = {}
+def replace_table_values(table):
+    if table is not None:
+        for row in table.rows:
+            for cell in row.cells:
+                cell_text = cell.text.strip()
+                if cell_text in values_to_replace:
+                    index = values_to_replace.index(cell_text)
+                    if index < len(current_replacements):
+                        print(f"Replacing '{cell_text}' with '{current_replacements[index]}'")  # Debug print
+                        cell.text = current_replacements[index]
+                else:
+                    print(f"Value '{cell_text}' not found in replacement list.")  # Debug print
 
 # Set up the main window
 root = tk.Tk()
