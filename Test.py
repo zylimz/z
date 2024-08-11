@@ -83,20 +83,21 @@ def apply_three_value_replacements():
         slide_index = 0
         for slide in prs.slides:
             if slide_index < len(replacement_pairs):
-                for shape in slide.shapes:
-                    if shape.has_table:
-                        process_three_value_table(shape.table, replacement_pairs[slide_index])
+                replace_values_in_table(slide, replacement_pairs[slide_index])
                 slide_index += 1
 
         messagebox.showinfo("Success", "Three-value replacements applied.")
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
 
-def process_three_value_table(table, replacement_values):
+def replace_values_in_table(slide, replacement_values):
     placeholders = ["30.02%", "15.34%", "83.46%"]  # The actual placeholders to be replaced
-    for row in table.rows:
-        for cell in row.cells:
-            replace_three_values_in_cell(cell, placeholders, replacement_values)
+    for shape in slide.shapes:
+        if shape.has_table:
+            table = shape.table
+            for row in table.rows:
+                for cell in row.cells:
+                    replace_three_values_in_cell(cell, placeholders, replacement_values)
 
 def replace_three_values_in_cell(cell, placeholders, replacements):
     full_text = cell.text
