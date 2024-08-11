@@ -62,7 +62,8 @@ def process_shape(shape):
         for row in table.rows:
             for cell in row.cells:
                 if cell.text.strip() in values_to_replace:
-                    cell.text = current_replacements[values_to_replace.index(cell.text.strip())]
+                    index = values_to_replace.index(cell.text.strip())
+                    cell.text = current_replacements[index]
 
 def replace_text_in_text_frame(text_frame):
     if text_frame is not None:
@@ -98,6 +99,7 @@ def apply_table_replacements():
                 break
             current_replacements = replacement_values[replacement_index]
 
+            # Process shapes on the current slide
             for shape in slide.shapes:
                 if shape.has_table:
                     table = shape.table
