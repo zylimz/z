@@ -23,6 +23,7 @@ def apply_replacements():
         return
 
     try:
+        global prs
         prs = Presentation(ppt_path)
         replacement_lines = entry_replacements.get("1.0", tk.END).strip().splitlines()
         replacements.clear()
@@ -40,12 +41,7 @@ def apply_replacements():
             for shape in slide.shapes:
                 process_shape(shape)
 
-        save_path = filedialog.asksaveasfilename(
-            defaultextension=".pptx", filetypes=[("PowerPoint Files", "*.pptx")]
-        )
-        if save_path:
-            prs.save(save_path)
-            messagebox.showinfo("Success", f"Replacements applied and saved to {save_path}")
+        messagebox.showinfo("Success", "Replacements applied. Don't forget to save your changes!")
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
 
@@ -85,7 +81,7 @@ def search_and_replace_value(search_value, entry_widget):
         return
 
     try:
-        prs = Presentation(ppt_path)
+        global prs
         replacement_values = entry_widget.get("1.0", tk.END).strip().splitlines()
 
         for slide in prs.slides:
@@ -120,14 +116,20 @@ def search_and_replace_value(search_value, entry_widget):
                 if not replacement_values:
                     break
 
+        messagebox.showinfo("Success", "Search and replacement applied. Don't forget to save your changes!")
+    except Exception as e:
+        messagebox.showerror("Error", f"An error occurred: {e}")
+
+def save_changes():
+    if 'prs' in globals():
         save_path = filedialog.asksaveasfilename(
             defaultextension=".pptx", filetypes=[("PowerPoint Files", "*.pptx")]
         )
         if save_path:
             prs.save(save_path)
-            messagebox.showinfo("Success", f"Search and replacement applied and saved to {save_path}")
-    except Exception as e:
-        messagebox.showerror("Error", f"An error occurred: {e}")
+            messagebox.showinfo("Success", f"Changes saved to {save_path}")
+    else:
+        messagebox.showerror("Error", "No changes to save. Please apply replacements first.")
 
 # Initialize the replacements dictionary
 replacements = {}
@@ -161,6 +163,9 @@ entry_replacements.grid(row=2, column=1, padx=10, pady=5)
 # Apply replacements button for SAW Replacements
 tk.Button(tab1, text="Apply Replacements", command=apply_replacements).grid(row=3, column=1, padx=10, pady=20)
 
+# Save changes button
+tk.Button(tab1, text="Save Changes", command=save_changes).grid(row=4, column=1, padx=10, pady=20)
+
 # Second tab for Search and Replace "31.77%"
 tab2 = ttk.Frame(notebook)
 notebook.add(tab2, text="Replace 31.77%")
@@ -172,6 +177,9 @@ entry_search_replace_31.grid(row=0, column=1, padx=10, pady=5)
 
 # Apply search and replace button
 tk.Button(tab2, text="Apply Search and Replace", command=lambda: search_and_replace_value("31.77%", entry_search_replace_31)).grid(row=1, column=1, padx=10, pady=20)
+
+# Save changes button
+tk.Button(tab2, text="Save Changes", command=save_changes).grid(row=2, column=1, padx=10, pady=20)
 
 # Third tab for Search and Replace "53.07%"
 tab3 = ttk.Frame(notebook)
@@ -185,6 +193,9 @@ entry_search_replace_53.grid(row=0, column=1, padx=10, pady=5)
 # Apply search and replace button
 tk.Button(tab3, text="Apply Search and Replace", command=lambda: search_and_replace_value("53.07%", entry_search_replace_53)).grid(row=1, column=1, padx=10, pady=20)
 
+# Save changes button
+tk.Button(tab3, text="Save Changes", command=save_changes).grid(row=2, column=1, padx=10, pady=20)
+
 # Fourth tab for Search and Replace "83.07%"
 tab4 = ttk.Frame(notebook)
 notebook.add(tab4, text="Replace 83.07%")
@@ -197,5 +208,8 @@ entry_search_replace_83.grid(row=0, column=1, padx=10, pady=5)
 # Apply search and replace button
 tk.Button(tab4, text="Apply Search and Replace", command=lambda: search_and_replace_value("83.07%", entry_search_replace_83)).grid(row=1, column=1, padx=10, pady=20)
 
-# Start the GUI loop
+# Save changes button
+tk.Button(tab4, text="Save Changes", command=save_changes).grid(row=2, column=1, padx=10, pady=20)
+
+# Start the Tkinter main loop
 root.mainloop()
