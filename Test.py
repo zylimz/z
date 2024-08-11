@@ -118,7 +118,8 @@ def replace_three_values_in_text_frame(text_frame, placeholders, replacements):
             full_text = ''.join([run.text for run in paragraph.runs])
             for i, placeholder in enumerate(placeholders):
                 if placeholder in full_text:
-                    full_text = full_text.replace(placeholder, replacements[i])
+                    if i < len(replacements):
+                        full_text = full_text.replace(placeholder, replacements[i])
             for run in paragraph.runs:
                 run.text = ''
             paragraph.runs[0].text = full_text
