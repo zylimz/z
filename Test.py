@@ -91,23 +91,19 @@ def apply_table_replacements():
         replacement_index = 0
 
         for slide in prs.slides:
+            if replacement_index >= len(replacement_values):
+                break
+            current_replacements = replacement_values[replacement_index]
+
             for shape in slide.shapes:
                 if shape.has_table:
                     table = shape.table
                     for row in table.rows:
                         for cell in row.cells:
                             if cell.text in values_to_replace:
-                                if replacement_index < len(replacement_values):
-                                    cell.text = replacement_values[replacement_index][values_to_replace.index(cell.text)]
-                                    replacement_index += 1
-                                if replacement_index >= len(replacement_values):
-                                    break
-                        if replacement_index >= len(replacement_values):
-                            break
-                if replacement_index >= len(replacement_values):
-                    break
-            if replacement_index >= len(replacement_values):
-                break
+                                cell.text = current_replacements[values_to_replace.index(cell.text)]
+            
+            replacement_index += 1
 
         save_path = filedialog.asksaveasfilename(
             defaultextension=".pptx", filetypes=[("PowerPoint Files", "*.pptx")]
@@ -155,7 +151,7 @@ entry_file_path = tk.Entry(tab2, width=50)
 entry_file_path.grid(row=0, column=1, padx=10, pady=5)
 tk.Button(tab2, text="Browse", command=browse_file).grid(row=0, column=2, padx=10, pady=5)
 
-tk.Label(tab2, text="Replacement Values (one line per slide):").grid(row=1, column=0, padx=10, pady=5)
+tk.Label(tab2, text="Replacement Values (one line per set of slides):").grid(row=1, column=0, padx=10, pady=5)
 entry_table_replacements = tk.Text(tab2, width=50, height=20)
 entry_table_replacements.grid(row=1, column=1, padx=10, pady=5)
 
