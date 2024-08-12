@@ -3,6 +3,8 @@ from tkinter import filedialog, messagebox, ttk
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 
+CHUNK_SIZE = 10  # Number of replacement lines to process at a time
+
 def browse_file():
     filepath = filedialog.askopenfilename(
         filetypes=[("PowerPoint Files", "*.pptx")]
@@ -91,15 +93,24 @@ def apply_combined_replacements(prs):
     try:
         replacement_lines = entry_combined.get("1.0", tk.END).strip().splitlines()
 
-        for line in replacement_lines:
-            try:
-                value_31, value_53, value_83 = line.split()
-                search_and_replace_value(prs, "31.77%", value_31)
-                search_and_replace_value(prs, "53.07%", value_53)
-                search_and_replace_value(prs, "83.07%", value_83)
-            except ValueError:
-                messagebox.showerror("Error", "Each line must contain exactly three values separated by spaces.")
-                return
+        total_lines = len(replacement_lines)
+        for start in range(0, total_lines, CHUNK_SIZE):
+            chunk = replacement_lines[start:start + CHUNK_SIZE]
+
+            for line in chunk:
+                try:
+                    value_31, value_53, value_83 = line.split()
+                    search_and_replace_value(prs, "31.77%", value_31)
+                    search_and_replace_value(prs, "53.07%", value_53)
+                    search_and_replace_value(prs, "83.07%", value_83)
+                except ValueError:
+                    messagebox.showerror("Error", "Each line must contain exactly three values separated by spaces.")
+                    return
+
+            # Update progress feedback
+            progress = min(start + CHUNK_SIZE, total_lines)
+            progress_label.config(text=f"Processing {progress}/{total_lines} lines...")
+            root.update_idletasks()
 
         messagebox.showinfo("Success", "Combined replacements applied.")
     except Exception as e:
@@ -160,6 +171,10 @@ notebook.add(tab_combined, text="Combined Replacements")
 tk.Label(tab_combined, text="Replacement Values (three per line, separated by spaces):").grid(row=0, column=0, padx=10, pady=5)
 entry_combined = tk.Text(tab_combined, width=50, height=20)
 entry_combined.grid(row=0, column=1, padx=10, pady=5)
+
+# Progress label for feedback
+progress_label = tk.Label(root, text="")
+progress_label.grid(row=2, column=0, padx=10, pady=5)
 
 # Apply replacements button for all replacements
 tk.Button(root, text="Apply All Replacements and Save", command=apply_all_replacements).grid(row=3, column=0, padx=10, pady=20)
