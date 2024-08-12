@@ -16,15 +16,15 @@ def add_default_replacements():
         old_text = f"SAW{i:02}"
         entry_replacements.insert(tk.END, f"{old_text} -> \n")
 
-def apply_saw_replacements():
+def load_presentation():
     ppt_path = entry_file_path.get()
     if not ppt_path:
         messagebox.showerror("Error", "Please select a PowerPoint file.")
-        return
+        return None
+    return Presentation(ppt_path)
 
+def apply_saw_replacements(prs):
     try:
-        global prs
-        prs = Presentation(ppt_path)
         replacement_lines = entry_replacements.get("1.0", tk.END).strip().splitlines()
         replacements.clear()
 
@@ -40,8 +40,7 @@ def apply_saw_replacements():
         for slide in prs.slides:
             for shape in slide.shapes:
                 process_shape(shape)
-
-        messagebox.showinfo("Success", "SAW replacements applied. Don't forget to save your changes!")
+        messagebox.showinfo("Success", "SAW replacements applied.")
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
 
@@ -66,15 +65,12 @@ def replace_text_in_text_frame(text_frame):
             full_text = ''.join([run.text for run in paragraph.runs])  # Combine all runs' text
             for old_text, new_text in replacements.items():
                 if old_text in full_text:
-                    # Replace the text in the combined string
                     full_text = full_text.replace(old_text, new_text)
-
-                    # Clear the paragraph runs and create a single run with the replaced text
                     for run in paragraph.runs:
                         run.text = ''  # Clear existing text
                     paragraph.runs[0].text = full_text  # Set the first run to the new text
 
-def search_and_replace_value(search_value, replacement_value):
+def search_and_replace_value(prs, search_value, replacement_value):
     for slide in prs.slides:
         for shape in slide.shapes:
             if shape.has_table:
@@ -86,41 +82,31 @@ def search_and_replace_value(search_value, replacement_value):
                             for paragraph in text_frame.paragraphs:
                                 for run in paragraph.runs:
                                     if search_value in run.text:
-                                        # Get the index of the text to replace
                                         start = run.text.find(search_value)
                                         end = start + len(search_value)
-                                        # Replace the text while preserving formatting
                                         run.text = run.text[:start] + replacement_value + run.text[end:]
                                         return  # Exit after the first match per slide
 
-def apply_combined_replacements():
-    ppt_path = entry_file_path.get()
-    if not ppt_path:
-        messagebox.showerror("Error", "Please select a PowerPoint file.")
-        return
-
+def apply_combined_replacements(prs):
     try:
-        global prs
-        prs = Presentation(ppt_path)
         replacement_lines = entry_combined.get("1.0", tk.END).strip().splitlines()
 
         for line in replacement_lines:
             try:
                 value_31, value_53, value_83 = line.split()
-                # Perform the replacements one at a time
-                search_and_replace_value("31.77%", value_31)
-                search_and_replace_value("53.07%", value_53)
-                search_and_replace_value("83.07%", value_83)
+                search_and_replace_value(prs, "31.77%", value_31)
+                search_and_replace_value(prs, "53.07%", value_53)
+                search_and_replace_value(prs, "83.07%", value_83)
             except ValueError:
                 messagebox.showerror("Error", "Each line must contain exactly three values separated by spaces.")
                 return
 
-        messagebox.showinfo("Success", "Combined replacements applied. Don't forget to save your changes!")
+        messagebox.showinfo("Success", "Combined replacements applied.")
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
 
-def save_changes():
-    if 'prs' in globals():
+def save_changes(prs):
+    if prs:
         save_path = filedialog.asksaveasfilename(
             defaultextension=".pptx", filetypes=[("PowerPoint Files", "*.pptx")]
         )
@@ -128,7 +114,14 @@ def save_changes():
             prs.save(save_path)
             messagebox.showinfo("Success", f"Changes saved to {save_path}")
     else:
-        messagebox.showerror("Error", "No changes to save. Please apply replacements first.")
+        messagebox.showerror("Error", "No presentation loaded.")
+
+def apply_all_replacements():
+    prs = load_presentation()
+    if prs:
+        apply_saw_replacements(prs)
+        apply_combined_replacements(prs)
+        save_changes(prs)
 
 # Initialize the replacements dictionary
 replacements = {}
@@ -159,12 +152,6 @@ tk.Label(tab1, text="Replacement Pairs (one per line):").grid(row=2, column=0, p
 entry_replacements = tk.Text(tab1, width=50, height=20)
 entry_replacements.grid(row=2, column=1, padx=10, pady=5)
 
-# Apply replacements button for SAW Replacements
-tk.Button(tab1, text="Apply SAW Replacements", command=apply_saw_replacements).grid(row=3, column=1, padx=10, pady=20)
-
-# Save changes button
-tk.Button(tab1, text="Save Changes", command=save_changes).grid(row=4, column=1, padx=10, pady=20)
-
 # Second tab for Combined Replacements
 tab_combined = ttk.Frame(notebook)
 notebook.add(tab_combined, text="Combined Replacements")
@@ -174,11 +161,8 @@ tk.Label(tab_combined, text="Replacement Values (three per line, separated by sp
 entry_combined = tk.Text(tab_combined, width=50, height=20)
 entry_combined.grid(row=0, column=1, padx=10, pady=5)
 
-# Apply combined replacements button
-tk.Button(tab_combined, text="Apply Combined Replacements", command=apply_combined_replacements).grid(row=1, column=1, padx=10, pady=20)
-
-# Save changes button
-tk.Button(tab_combined, text="Save Changes", command=save_changes).grid(row=2, column=1, padx=10, pady=20)
+# Apply replacements button for all replacements
+tk.Button(root, text="Apply All Replacements and Save", command=apply_all_replacements).grid(row=3, column=0, padx=10, pady=20)
 
 # Start the Tkinter main loop
 root.mainloop()
