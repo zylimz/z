@@ -16,7 +16,7 @@ def add_default_replacements():
         old_text = f"SAW{i:02}"
         entry_replacements.insert(tk.END, f"{old_text} -> \n")
 
-def apply_replacements():
+def apply_saw_replacements():
     ppt_path = entry_file_path.get()
     if not ppt_path:
         messagebox.showerror("Error", "Please select a PowerPoint file.")
@@ -41,7 +41,7 @@ def apply_replacements():
             for shape in slide.shapes:
                 process_shape(shape)
 
-        messagebox.showinfo("Success", "Replacements applied. Don't forget to save your changes!")
+        messagebox.showinfo("Success", "SAW replacements applied. Don't forget to save your changes!")
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
 
@@ -93,17 +93,6 @@ def search_and_replace_value(search_value, replacement_value):
                                         run.text = run.text[:start] + replacement_value + run.text[end:]
                                         return  # Exit after the first match per slide
 
-def save_changes():
-    if 'prs' in globals():
-        save_path = filedialog.asksaveasfilename(
-            defaultextension=".pptx", filetypes=[("PowerPoint Files", "*.pptx")]
-        )
-        if save_path:
-            prs.save(save_path)
-            messagebox.showinfo("Success", f"Changes saved to {save_path}")
-    else:
-        messagebox.showerror("Error", "No changes to save. Please apply replacements first.")
-
 def apply_combined_replacements():
     ppt_path = entry_file_path.get()
     if not ppt_path:
@@ -129,6 +118,17 @@ def apply_combined_replacements():
         messagebox.showinfo("Success", "Combined replacements applied. Don't forget to save your changes!")
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
+
+def save_changes():
+    if 'prs' in globals():
+        save_path = filedialog.asksaveasfilename(
+            defaultextension=".pptx", filetypes=[("PowerPoint Files", "*.pptx")]
+        )
+        if save_path:
+            prs.save(save_path)
+            messagebox.showinfo("Success", f"Changes saved to {save_path}")
+    else:
+        messagebox.showerror("Error", "No changes to save. Please apply replacements first.")
 
 # Initialize the replacements dictionary
 replacements = {}
@@ -160,7 +160,7 @@ entry_replacements = tk.Text(tab1, width=50, height=20)
 entry_replacements.grid(row=2, column=1, padx=10, pady=5)
 
 # Apply replacements button for SAW Replacements
-tk.Button(tab1, text="Apply Replacements", command=apply_replacements).grid(row=3, column=1, padx=10, pady=20)
+tk.Button(tab1, text="Apply SAW Replacements", command=apply_saw_replacements).grid(row=3, column=1, padx=10, pady=20)
 
 # Save changes button
 tk.Button(tab1, text="Save Changes", command=save_changes).grid(row=4, column=1, padx=10, pady=20)
