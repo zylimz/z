@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
+from pptx.dml.color import RGBColor
 import time
 import threading
 
@@ -75,6 +76,9 @@ def replace_text_in_text_frame(text_frame):
                         run.text = ''  # Clear existing text
                     paragraph.runs[0].text = full_text  # Set the first run to the new text
 
+def set_text_color(run, rgb_color):
+    run.font.color.rgb = rgb_color
+
 def search_and_replace_value(prs, search_value, replacement_value):
     for slide in prs.slides:
         for shape in slide.shapes:
@@ -90,6 +94,13 @@ def search_and_replace_value(prs, search_value, replacement_value):
                                         start = run.text.find(search_value)
                                         end = start + len(search_value)
                                         run.text = run.text[:start] + replacement_value + run.text[end:]
+
+                                        # Check if the replacement value is above 85% and set color to red
+                                        try:
+                                            if float(replacement_value.strip('%')) > 85:
+                                                set_text_color(run, RGBColor(255, 0, 0))  # Red color
+                                        except ValueError:
+                                            pass  # In case the replacement value is not a number
                                         return  # Exit after the first match per slide
 
 def apply_combined_replacements(prs):
