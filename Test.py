@@ -74,51 +74,24 @@ def replace_text_in_text_frame(text_frame):
                         run.text = ''  # Clear existing text
                     paragraph.runs[0].text = full_text  # Set the first run to the new text
 
-def search_and_replace_value(search_value, entry_widget):
-    ppt_path = entry_file_path.get()
-    if not ppt_path:
-        messagebox.showerror("Error", "Please select a PowerPoint file.")
-        return
-
-    try:
-        global prs
-        replacement_values = entry_widget.get("1.0", tk.END).strip().splitlines()
-
-        for slide in prs.slides:
-            for shape in slide.shapes:
-                if shape.has_table:
-                    table = shape.table
-                    for row in table.rows:
-                        for cell in row.cells:
-                            if search_value in cell.text:
-                                text_frame = cell.text_frame
-                                for paragraph in text_frame.paragraphs:
-                                    for run in paragraph.runs:
-                                        if search_value in run.text:
-                                            # Get the index of the text to replace
-                                            start = run.text.find(search_value)
-                                            end = start + len(search_value)
-                                            # Replace the text while preserving formatting
-                                            run.text = run.text[:start] + replacement_values.pop(0) if replacement_values else run.text[:start]
-                                            run.text += run.text[end:]
-                                            # Update remaining replacements in the input field
-                                            entry_widget.delete("1.0", tk.END)
-                                            entry_widget.insert(tk.END, "\n".join(replacement_values))
-                                            break
-                                    else:
-                                        continue
-                                    break
-                            if not replacement_values:
-                                break
-                        else:
-                            continue
-                        break
-                if not replacement_values:
-                    break
-
-        messagebox.showinfo("Success", "Search and replacement applied. Don't forget to save your changes!")
-    except Exception as e:
-        messagebox.showerror("Error", f"An error occurred: {e}")
+def search_and_replace_value(search_value, replacement_value):
+    for slide in prs.slides:
+        for shape in slide.shapes:
+            if shape.has_table:
+                table = shape.table
+                for row in table.rows:
+                    for cell in row.cells:
+                        if search_value in cell.text:
+                            text_frame = cell.text_frame
+                            for paragraph in text_frame.paragraphs:
+                                for run in paragraph.runs:
+                                    if search_value in run.text:
+                                        # Get the index of the text to replace
+                                        start = run.text.find(search_value)
+                                        end = start + len(search_value)
+                                        # Replace the text while preserving formatting
+                                        run.text = run.text[:start] + replacement_value + run.text[end:]
+                                        return  # Exit after the first match per slide
 
 def save_changes():
     if 'prs' in globals():
