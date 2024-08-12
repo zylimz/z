@@ -3,9 +3,10 @@ from tkinter import filedialog, messagebox, ttk
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 import time
+import threading
 
-CHUNK_SIZE = 5  # Reduced chunk size to process fewer lines at a time
-DELAY = 0.1  # Delay in seconds between processing chunks
+CHUNK_SIZE = 5  # Adjusted chunk size
+DELAY = 0.1  # Delay between processing chunks
 
 def browse_file():
     filepath = filedialog.askopenfilename(
@@ -132,12 +133,16 @@ def save_changes(prs):
     else:
         messagebox.showerror("Error", "No presentation loaded.")
 
-def apply_all_replacements():
+def apply_all_replacements_thread():
     prs = load_presentation()
     if prs:
         apply_saw_replacements(prs)
         apply_combined_replacements(prs)
         save_changes(prs)
+    progress_label.config(text="Processing complete.")
+
+def start_threaded_replacement():
+    threading.Thread(target=apply_all_replacements_thread).start()
 
 # Initialize the replacements dictionary
 replacements = {}
@@ -182,7 +187,7 @@ progress_label = tk.Label(root, text="")
 progress_label.grid(row=2, column=0, padx=10, pady=5)
 
 # Apply replacements button for all replacements
-tk.Button(root, text="Apply All Replacements and Save", command=apply_all_replacements).grid(row=3, column=0, padx=10, pady=20)
+tk.Button(root, text="Apply All Replacements and Save", command=start_threaded_replacement).grid(row=3, column=0, padx=10, pady=20)
 
 # Start the Tkinter main loop
 root.mainloop()
