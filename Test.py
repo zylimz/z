@@ -74,7 +74,7 @@ def replace_text_in_text_frame(text_frame):
                         run.text = ''  # Clear existing text
                     paragraph.runs[0].text = full_text  # Set the first run to the new text
 
-def search_and_replace_value(search_value, entry_widget):
+def search_and_replace_values():
     ppt_path = entry_file_path.get()
     if not ppt_path:
         messagebox.showerror("Error", "Please select a PowerPoint file.")
@@ -82,7 +82,7 @@ def search_and_replace_value(search_value, entry_widget):
 
     try:
         global prs
-        replacement_values = entry_widget.get("1.0", tk.END).strip().splitlines()
+        replacement_lines = entry_search_replace.get("1.0", tk.END).strip().splitlines()
 
         for slide in prs.slides:
             for shape in slide.shapes:
@@ -90,33 +90,28 @@ def search_and_replace_value(search_value, entry_widget):
                     table = shape.table
                     for row in table.rows:
                         for cell in row.cells:
-                            if search_value in cell.text:
-                                text_frame = cell.text_frame
-                                for paragraph in text_frame.paragraphs:
-                                    for run in paragraph.runs:
-                                        if search_value in run.text:
-                                            # Get the index of the text to replace
-                                            start = run.text.find(search_value)
-                                            end = start + len(search_value)
-                                            # Replace the text while preserving formatting
-                                            run.text = run.text[:start] + replacement_values.pop(0) if replacement_values else run.text[:start]
-                                            run.text += run.text[end:]
-                                            # Update remaining replacements in the input field
-                                            entry_widget.delete("1.0", tk.END)
-                                            entry_widget.insert(tk.END, "\n".join(replacement_values))
-                                            break
-                                    else:
-                                        continue
-                                    break
-                            if not replacement_values:
-                                break
-                        else:
-                            continue
-                        break
-                if not replacement_values:
-                    break
+                            text_frame = cell.text_frame
+                            full_text = ''.join([run.text for run in text_frame.paragraphs[0].runs]) if text_frame.paragraphs else ""
+                            if "31.77%" in full_text or "53.07%" in full_text or "83.07%" in full_text:
+                                for line in replacement_lines:
+                                    values = line.split()
+                                    if len(values) == 3:
+                                        if "31.77%" in full_text:
+                                            new_value = values[0]
+                                            full_text = full_text.replace("31.77%", new_value)
+                                        if "53.07%" in full_text:
+                                            new_value = values[1]
+                                            full_text = full_text.replace("53.07%", new_value)
+                                        if "83.07%" in full_text:
+                                            new_value = values[2]
+                                            full_text = full_text.replace("83.07%", new_value)
+                                        
+                                        # Apply the formatted text back to the runs
+                                        for run in text_frame.paragraphs[0].runs:
+                                            run.text = ''  # Clear existing text
+                                        text_frame.paragraphs[0].runs[0].text = full_text  # Set the first run to the new text
 
-        messagebox.showinfo("Success", "Search and replacement applied. Don't forget to save your changes!")
+        messagebox.showinfo("Success", "Search and replacements applied. Don't forget to save your changes!")
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
 
@@ -166,50 +161,20 @@ tk.Button(tab1, text="Apply Replacements", command=apply_replacements).grid(row=
 # Save changes button
 tk.Button(tab1, text="Save Changes", command=save_changes).grid(row=4, column=1, padx=10, pady=20)
 
-# Second tab for Search and Replace "31.77%"
+# Second tab for Search and Replace Values
 tab2 = ttk.Frame(notebook)
-notebook.add(tab2, text="Replace 31.77%")
+notebook.add(tab2, text="Replace 31.77%, 53.07%, 83.07%")
 
 # Search and replace input
-tk.Label(tab2, text="Replacement Values (one per line):").grid(row=0, column=0, padx=10, pady=5)
-entry_search_replace_31 = tk.Text(tab2, width=50, height=20)
-entry_search_replace_31.grid(row=0, column=1, padx=10, pady=5)
+tk.Label(tab2, text="Replacement Values (three per line):").grid(row=0, column=0, padx=10, pady=5)
+entry_search_replace = tk.Text(tab2, width=50, height=20)
+entry_search_replace.grid(row=0, column=1, padx=10, pady=5)
 
 # Apply search and replace button
-tk.Button(tab2, text="Apply Search and Replace", command=lambda: search_and_replace_value("31.77%", entry_search_replace_31)).grid(row=1, column=1, padx=10, pady=20)
+tk.Button(tab2, text="Apply Search and Replace", command=search_and_replace_values).grid(row=1, column=1, padx=10, pady=20)
 
 # Save changes button
 tk.Button(tab2, text="Save Changes", command=save_changes).grid(row=2, column=1, padx=10, pady=20)
-
-# Third tab for Search and Replace "53.07%"
-tab3 = ttk.Frame(notebook)
-notebook.add(tab3, text="Replace 53.07%")
-
-# Search and replace input
-tk.Label(tab3, text="Replacement Values (one per line):").grid(row=0, column=0, padx=10, pady=5)
-entry_search_replace_53 = tk.Text(tab3, width=50, height=20)
-entry_search_replace_53.grid(row=0, column=1, padx=10, pady=5)
-
-# Apply search and replace button
-tk.Button(tab3, text="Apply Search and Replace", command=lambda: search_and_replace_value("53.07%", entry_search_replace_53)).grid(row=1, column=1, padx=10, pady=20)
-
-# Save changes button
-tk.Button(tab3, text="Save Changes", command=save_changes).grid(row=2, column=1, padx=10, pady=20)
-
-# Fourth tab for Search and Replace "83.07%"
-tab4 = ttk.Frame(notebook)
-notebook.add(tab4, text="Replace 83.07%")
-
-# Search and replace input
-tk.Label(tab4, text="Replacement Values (one per line):").grid(row=0, column=0, padx=10, pady=5)
-entry_search_replace_83 = tk.Text(tab4, width=50, height=20)
-entry_search_replace_83.grid(row=0, column=1, padx=10, pady=5)
-
-# Apply search and replace button
-tk.Button(tab4, text="Apply Search and Replace", command=lambda: search_and_replace_value("83.07%", entry_search_replace_83)).grid(row=1, column=1, padx=10, pady=20)
-
-# Save changes button
-tk.Button(tab4, text="Save Changes", command=save_changes).grid(row=2, column=1, padx=10, pady=20)
 
 # Start the Tkinter main loop
 root.mainloop()
