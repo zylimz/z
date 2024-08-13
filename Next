@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import win32com.client
 import time
+import os
 
 def browse_file():
     filepath = filedialog.askopenfilename(
@@ -12,9 +13,9 @@ def browse_file():
 
 def update_embedded_excel(ppt_file, data_sets):
     try:
-        # Initialize PowerPoint and Excel applications
+        # Ensure the PowerPoint and Excel applications are started
         powerpoint = win32com.client.Dispatch("PowerPoint.Application")
-        presentation = powerpoint.Presentations.Open(ppt_file, ReadOnly=False)
+        presentation = powerpoint.Presentations.Open(os.path.abspath(ppt_file), ReadOnly=False)
         excel_app = win32com.client.Dispatch("Excel.Application")
         excel_app.Visible = False  # Ensure Excel is not visible
         
@@ -31,7 +32,7 @@ def update_embedded_excel(ppt_file, data_sets):
                     chart.ChartData.Activate()
                     
                     # Access embedded Excel
-                    workbook = excel_app.Workbooks(chart.ChartData.Workbook.FullName)
+                    workbook = excel_app.Workbooks(os.path.abspath(chart.ChartData.Workbook.FullName))
                     worksheet = workbook.Worksheets(1)
 
                     # Update values in the embedded Excel
