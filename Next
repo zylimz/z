@@ -110,6 +110,7 @@ def update_chart_data(ppt_file, data_lines):
     try:
         powerpoint = win32com.client.Dispatch("PowerPoint.Application")
         presentation = powerpoint.Presentations.Open(ppt_file)
+        excel_app = win32com.client.Dispatch("Excel.Application")
 
         for slide in presentation.Slides:
             for shape in slide.Shapes:
@@ -118,19 +119,20 @@ def update_chart_data(ppt_file, data_lines):
                     chart.ChartData.Activate()
                     
                     # Access embedded Excel
-                    excel_app = win32com.client.Dispatch("Excel.Application")
                     workbook = excel_app.Workbooks(chart.ChartData.Workbook.FullName)
                     worksheet = workbook.Worksheets(1)
 
                     # Update the worksheet with data
                     for i, row_data in enumerate(data_lines):
-                        for j, value in enumerate(row_data):
-                            if j == 0:
-                                worksheet.Cells[i + 2, j + 1].Value = value
-                                worksheet.Cells[i + 2, j + 1].NumberFormat = 'mmm-yy'
-                            elif j >= 1 and j <= 3:
-                                worksheet.Cells[i + 2, j + 1].Value = float(value) / 100
-                                worksheet.Cells[i + 2, j + 1].NumberFormat = '0.00%'
+                        if i < 3:  # Ensure that we only process the first three rows
+                            for j, value in enumerate(row_data):
+                                cell = worksheet.Cells[i + 2, j + 1]  # Adjust for proper row/column indexing
+                                if j == 0:
+                                    cell.Value = value
+                                    cell.NumberFormat = 'mmm-yy'
+                                elif 1 <= j <= 3:
+                                    cell.Value = float(value) / 100
+                                    cell.NumberFormat = '0.00%'
 
                     workbook.Save()
                     workbook.Close()
