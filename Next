@@ -9,15 +9,24 @@ def browse_file():
     entry_file_path.delete(0, tk.END)
     entry_file_path.insert(0, filepath)
 
-def update_embedded_excel(ppt_file, data_lines):
+def update_embedded_excel(ppt_file, data_sets):
     try:
         # Initialize PowerPoint and Excel applications
         powerpoint = win32com.client.Dispatch("PowerPoint.Application")
-        presentation = powerpoint.Presentations.Open(ppt_file)
+        presentation = powerpoint.Presentations.Open(ppt_file, ReadOnly=False)
         excel_app = win32com.client.Dispatch("Excel.Application")
+        excel_app.Visible = False  # Ensure Excel is not visible
+        
+        slide_index = 1  # Start from the first slide
 
-        # Loop through slides to find charts
-        for slide in presentation.Slides:
+        for data_lines in data_sets:
+            # Ensure the slide index is within the range of slides
+            if slide_index > len(presentation.Slides):
+                break
+            
+            slide = presentation.Slides(slide_index)
+            
+            chart_found = False
             for shape in slide.Shapes:
                 if shape.HasChart:
                     chart = shape.Chart
@@ -32,23 +41,24 @@ def update_embedded_excel(ppt_file, data_lines):
                         if i < 3:  # Update only rows 2 to 4
                             for j in range(4):  # Update only columns 1 to 4
                                 value = row_data[j]
-                                cell = worksheet.Cells(i + 2, j + 1]  # Adjust for proper row/column indexing
+                                cell = worksheet.Cells(i + 2, j + 1)  # Adjust for proper row/column indexing
                                 cell.Value = value
 
-                    # Save and close the workbook
-                    workbook.Save()
-                    workbook.Close()
+                    # Close the embedded Excel without saving
+                    workbook.Close(SaveChanges=False)
                     
-                    # Exit the loop after modifying the first chart found
-                    break
+                    chart_found = True
+                    break  # Exit the loop after modifying the first chart found
+            
+            if not chart_found:
+                messagebox.showwarning("Warning", f"No chart found on slide {slide_index}.")
+            
+            slide_index += 1  # Move to the next slide
 
-        # Save and close the presentation
-        presentation.Save()
-        presentation.Close()
-        powerpoint.Quit()
-        excel_app.Quit()
-        
-        messagebox.showinfo("Success", "Excel values updated successfully.")
+        # Keep PowerPoint open
+        # powerpoint.Quit()  # Uncomment if you want to close PowerPoint automatically
+
+        messagebox.showinfo("Success", "Excel values updated successfully for all charts.")
         
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred while updating chart data: {e}")
@@ -61,17 +71,23 @@ def apply_excel_replacements():
 
     try:
         # Get data from the text field
-        data_lines = entry_excel.get("1.0", tk.END).strip().splitlines()
-        if len(data_lines) != 3:
-            messagebox.showerror("Error", "Please enter exactly 3 lines of data.")
+        data_sets = entry_excel.get("1.0", tk.END).strip().split("\n\n")  # Separate sets by double newlines
+        if len(data_sets) < 1:
+            messagebox.showerror("Error", "Please enter at least one set of data.")
             return
         
-        # Process each line
-        input_data = [line.split() for line in data_lines]
-        if any(len(line) != 4 for line in input_data):
-            messagebox.showerror("Error", "Each line must contain exactly 4 values separated by spaces.")
-            return
-        
+        input_data = []
+        for data_set in data_sets:
+            lines = data_set.strip().splitlines()
+            if len(lines) != 3:
+                messagebox.showerror("Error", "Each data set must contain exactly 3 lines of data.")
+                return
+            data_lines = [line.split() for line in lines]
+            if any(len(line) != 4 for line in data_lines):
+                messagebox.showerror("Error", "Each line in a data set must contain exactly 4 values separated by spaces.")
+                return
+            input_data.append(data_lines)
+
         # Update Excel data in PowerPoint
         update_embedded_excel(ppt_file, input_data)
 
@@ -97,8 +113,8 @@ entry_file_path.grid(row=0, column=1, padx=10, pady=5)
 tk.Button(tab_excel, text="Browse", command=browse_file).grid(row=0, column=2, padx=10, pady=5)
 
 # Input area for Excel replacements
-tk.Label(tab_excel, text="Enter Excel Table Data (3 lines, 4 values per line):").grid(row=1, column=0, padx=10, pady=5)
-entry_excel = tk.Text(tab_excel, width=50, height=10)
+tk.Label(tab_excel, text="Enter Excel Table Data (Multiple sets, each set separated by a blank line):").grid(row=1, column=0, padx=10, pady=5)
+entry_excel = tk.Text(tab_excel, width=50, height=15)
 entry_excel.grid(row=1, column=1, padx=10, pady=5)
 
 # Apply replacements button
