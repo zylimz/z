@@ -1,10 +1,12 @@
+import os
+import tempfile
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
-from pptx.oxml import parse_xml
-from pptx.dml.color import RGBColor
+import xlwings as xw
 
+# Function to browse for a PowerPoint file
 def browse_file():
     filepath = filedialog.askopenfilename(
         filetypes=[("PowerPoint Files", "*.pptx")]
@@ -12,12 +14,14 @@ def browse_file():
     entry_file_path.delete(0, tk.END)
     entry_file_path.insert(0, filepath)
 
+# Function to add default replacements for SAW replacements
 def add_default_replacements():
     entry_replacements.delete("1.0", tk.END)
     for i in range(1, 91):
         old_text = f"SAW{i:02}"
         entry_replacements.insert(tk.END, f"{old_text} -> \n")
 
+# Function to load the PowerPoint presentation
 def load_presentation():
     ppt_path = entry_file_path.get()
     if not ppt_path:
@@ -25,6 +29,7 @@ def load_presentation():
         return None
     return Presentation(ppt_path)
 
+# Function to apply SAW replacements
 def apply_saw_replacements(prs):
     try:
         replacement_lines = entry_replacements.get("1.0", tk.END).strip().splitlines()
@@ -46,6 +51,7 @@ def apply_saw_replacements(prs):
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
 
+# Function to process each shape in the presentation
 def process_shape(shape):
     if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
         for s in shape.shapes:
@@ -61,6 +67,7 @@ def process_shape(shape):
                 text_frame = cell.text_frame
                 replace_text_in_text_frame(text_frame)
 
+# Function to replace text in text frames
 def replace_text_in_text_frame(text_frame):
     if text_frame is not None:
         for paragraph in text_frame.paragraphs:
@@ -72,6 +79,7 @@ def replace_text_in_text_frame(text_frame):
                         run.text = ''  # Clear existing text
                     paragraph.runs[0].text = full_text  # Set the first run to the new text
 
+# Function to search and replace values in tables
 def search_and_replace_value(prs, search_value, replacement_value):
     for slide in prs.slides:
         for shape in slide.shapes:
@@ -89,6 +97,7 @@ def search_and_replace_value(prs, search_value, replacement_value):
                                         run.text = run.text[:start] + replacement_value + run.text[end:]
                                         return  # Exit after the first match per slide
 
+# Function to apply combined replacements
 def apply_combined_replacements(prs):
     try:
         replacement_lines = entry_combined.get("1.0", tk.END).strip().splitlines()
@@ -107,59 +116,70 @@ def apply_combined_replacements(prs):
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
 
-def replace_chart_data(chart_data, new_values):
-    """
-    Replace rows 2 to 4 and columns 1 to 4 with new values.
-    Column 1 is expected to be a date, and columns 2 to 4 are expected to be percentages.
-    `chart_data` is the data chart extracted from the PowerPoint chart.
-    `new_values` is a list of lists containing the new values for rows 2 to 4.
-    """
-    for i, row_values in enumerate(new_values):
-        for j, value in enumerate(row_values):
-            try:
-                if j == 0:  # Column 1 (Date)
-                    # Assign the date value directly (assuming input is already a string formatted as a date)
-                    chart_data.get_cell(i + 1, j + 1).value = value
-                else:  # Columns 2 to 4 (Percentages)
-                    percentage_value = float(value)
-                    chart_data.get_cell(i + 1, j + 1).value = percentage_value
+# Function to replace chart data
+def replace_chart_data(prs, input_data):
+    for slide in prs.slides:
+        for shape in slide.shapes:
+            if shape.has_chart:  # Check if the shape is a chart
+                chart = shape.chart
+                workbook_part = chart.part.related_parts[chart.chart_workbook_part._id]
+                
+                # Save the embedded Excel workbook to a temporary file
+                temp_dir = tempfile.mkdtemp()
+                temp_excel_path = os.path.join(temp_dir, 'temp.xlsx')
+                
+                with open(temp_excel_path, 'wb') as temp_excel_file:
+                    temp_excel_file.write(workbook_part.blob)
 
-                    # Change the color to red if the value is above 85%
-                    if percentage_value > 85:
-                        cell = chart_data.get_cell(i + 1, j + 1)
-                        tc = cell._element.tc
-                        tcPr = tc.get_or_add_tcPr()
-                        tcPr.append(parse_xml(f'<a:solidFill xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:srgbClr val="FF0000"/></a:solidFill>'))
+                # Open the Excel file with xlwings and update data
+                app = xw.App(visible=False)  # Start Excel application in background
+                workbook = xw.Book(temp_excel_path)
+                sheet = workbook.sheets[0]  # Get the first sheet
 
-            except ValueError:
-                print(f"Could not convert {value} to a float for percentages. Skipping cell update.")
+                # Replace the data for rows 2-4 and columns 1-4 with input_data
+                for i, row_data in enumerate(input_data):
+                    for j, value in enumerate(row_data):
+                        sheet.cells[i+2, j+1].value = value  # Insert plain text value
 
+                workbook.save(temp_excel_path)
+                workbook.close()
+                app.quit()
+
+                # Replace the existing embedded workbook with the updated one
+                with open(temp_excel_path, 'rb') as updated_excel_file:
+                    updated_excel_blob = updated_excel_file.read()
+                workbook_part._blob = updated_excel_blob
+                
+                # Cleanup
+                os.remove(temp_excel_path)
+                os.rmdir(temp_dir)
+
+# Function to apply Excel replacements
 def apply_excel_replacements(prs):
     try:
         replacement_lines = entry_excel.get("1.0", tk.END).strip().splitlines()
+        input_data = []
 
-        if len(replacement_lines) != 3:
-            messagebox.showerror("Error", "You must enter exactly 3 lines, each with 4 values.")
+        for line in replacement_lines:
+            try:
+                row_data = [float(value) for value in line.split()]
+                if len(row_data) != 4:
+                    raise ValueError("Each line must contain exactly four values.")
+                input_data.append(row_data)
+            except ValueError as ve:
+                messagebox.showerror("Error", str(ve))
+                return
+
+        if len(input_data) != 3:
+            messagebox.showerror("Error", "There must be exactly three lines of input data.")
             return
 
-        new_values = []
-        for line in replacement_lines:
-            values = line.split()
-            if len(values) != 4:
-                messagebox.showerror("Error", "Each line must contain exactly 4 values.")
-                return
-            new_values.append(values)
-
-        for slide in prs.slides:
-            for shape in slide.shapes:
-                if shape.has_chart:  # Ensure the shape is a chart
-                    chart_data = shape.chart.chart_data
-                    replace_chart_data(chart_data, new_values)
-
-        messagebox.showinfo("Success", "Excel table replacements applied.")
+        replace_chart_data(prs, input_data)
+        messagebox.showinfo("Success", "Excel replacements applied.")
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
 
+# Function to save the presentation
 def save_changes(prs):
     if prs:
         save_path = filedialog.asksaveasfilename(
@@ -171,6 +191,7 @@ def save_changes(prs):
     else:
         messagebox.showerror("Error", "No presentation loaded.")
 
+# Function to apply all replacements
 def apply_all_replacements():
     prs = load_presentation()
     if prs:
@@ -205,16 +226,16 @@ tk.Button(tab1, text="Load SAW01 to SAW90", command=add_default_replacements).gr
 
 # Replacement input area for SAW Replacements
 tk.Label(tab1, text="Replacement Pairs (one per line):").grid(row=2, column=0, padx=10, pady=5)
-entry_replacements = tk.Text(tab1, width=50, height=20)
+entry_replacements = tk.Text(tab1, width=50, height=15)
 entry_replacements.grid(row=2, column=1, padx=10, pady=5)
 
-# Second tab for Combined Replacements
-tab_combined = ttk.Frame(notebook)
-notebook.add(tab_combined, text="Combined Replacements")
+# Second tab for combined replacements
+tab2 = ttk.Frame(notebook)
+notebook.add(tab2, text="Combined Replacements")
 
-# Combined replacement input
-tk.Label(tab_combined, text="Replacement Values (three per line, separated by spaces):").grid(row=0, column=0, padx=10, pady=5)
-entry_combined = tk.Text(tab_combined, width=50, height=10)
+# Input area for combined replacements
+tk.Label(tab2, text="Enter combined values:").grid(row=0, column=0, padx=10, pady=5)
+entry_combined = tk.Text(tab2, width=50, height=10)
 entry_combined.grid(row=1, column=0, padx=10, pady=5)
 
 # Third tab for Excel table replacements
@@ -226,7 +247,8 @@ tk.Label(tab3, text="Enter Excel values (4 values per line):").grid(row=0, colum
 entry_excel = tk.Text(tab3, width=50, height=10)
 entry_excel.grid(row=1, column=0, padx=10, pady=5)
 
-# Save button to save the PowerPoint
-tk.Button(root, text="Save Changes", command=apply_all_replacements).grid(row=2, column=0, padx=10, pady=10)
+# Button to apply all changes and save
+btn_save_changes = tk.Button(root, text="Save Changes", command=apply_all_replacements)
+btn_save_changes.grid(row=1, column=0, padx=10, pady=10)
 
 root.mainloop()
