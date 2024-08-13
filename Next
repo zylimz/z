@@ -1,0 +1,254 @@
+import os
+import tempfile
+import tkinter as tk
+from tkinter import filedialog, messagebox, ttk
+from pptx import Presentation
+from pptx.enum.shapes import MSO_SHAPE_TYPE
+import xlwings as xw
+
+# Function to browse for a PowerPoint file
+def browse_file():
+    filepath = filedialog.askopenfilename(
+        filetypes=[("PowerPoint Files", "*.pptx")]
+    )
+    entry_file_path.delete(0, tk.END)
+    entry_file_path.insert(0, filepath)
+
+# Function to add default replacements for SAW replacements
+def add_default_replacements():
+    entry_replacements.delete("1.0", tk.END)
+    for i in range(1, 91):
+        old_text = f"SAW{i:02}"
+        entry_replacements.insert(tk.END, f"{old_text} -> \n")
+
+# Function to load the PowerPoint presentation
+def load_presentation():
+    ppt_path = entry_file_path.get()
+    if not ppt_path:
+        messagebox.showerror("Error", "Please select a PowerPoint file.")
+        return None
+    return Presentation(ppt_path)
+
+# Function to apply SAW replacements
+def apply_saw_replacements(prs):
+    try:
+        replacement_lines = entry_replacements.get("1.0", tk.END).strip().splitlines()
+        replacements.clear()
+
+        for i, line in enumerate(replacement_lines):
+            old_text = f"SAW{i+1:02}"
+            if '->' in line:
+                _, new_text = line.split('->')
+                new_text = new_text.strip()
+                replacements[old_text] = new_text
+            else:
+                replacements[old_text] = line.strip()
+
+        for slide in prs.slides:
+            for shape in slide.shapes:
+                process_shape(shape)
+        messagebox.showinfo("Success", "SAW replacements applied.")
+    except Exception as e:
+        messagebox.showerror("Error", f"An error occurred: {e}")
+
+# Function to process each shape in the presentation
+def process_shape(shape):
+    if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
+        for s in shape.shapes:
+            process_shape(s)  # Recursive call to handle nested groups
+    elif shape.has_text_frame:
+        text_frame = shape.text_frame
+        replace_text_in_text_frame(text_frame)
+
+    if shape.has_table:
+        table = shape.table
+        for row in table.rows:
+            for cell in row.cells:
+                text_frame = cell.text_frame
+                replace_text_in_text_frame(text_frame)
+
+# Function to replace text in text frames
+def replace_text_in_text_frame(text_frame):
+    if text_frame is not None:
+        for paragraph in text_frame.paragraphs:
+            full_text = ''.join([run.text for run in paragraph.runs])  # Combine all runs' text
+            for old_text, new_text in replacements.items():
+                if old_text in full_text:
+                    full_text = full_text.replace(old_text, new_text)
+                    for run in paragraph.runs:
+                        run.text = ''  # Clear existing text
+                    paragraph.runs[0].text = full_text  # Set the first run to the new text
+
+# Function to search and replace values in tables
+def search_and_replace_value(prs, search_value, replacement_value):
+    for slide in prs.slides:
+        for shape in slide.shapes:
+            if shape.has_table:
+                table = shape.table
+                for row in table.rows:
+                    for cell in row.cells:
+                        if search_value in cell.text:
+                            text_frame = cell.text_frame
+                            for paragraph in text_frame.paragraphs:
+                                for run in paragraph.runs:
+                                    if search_value in run.text:
+                                        start = run.text.find(search_value)
+                                        end = start + len(search_value)
+                                        run.text = run.text[:start] + replacement_value + run.text[end:]
+                                        return  # Exit after the first match per slide
+
+# Function to apply combined replacements
+def apply_combined_replacements(prs):
+    try:
+        replacement_lines = entry_combined.get("1.0", tk.END).strip().splitlines()
+
+        for line in replacement_lines:
+            try:
+                value_31, value_53, value_83 = line.split()
+                search_and_replace_value(prs, "31.77%", value_31)
+                search_and_replace_value(prs, "53.07%", value_53)
+                search_and_replace_value(prs, "83.07%", value_83)
+            except ValueError:
+                messagebox.showerror("Error", "Each line must contain exactly three values separated by spaces.")
+                return
+
+        messagebox.showinfo("Success", "Combined replacements applied.")
+    except Exception as e:
+        messagebox.showerror("Error", f"An error occurred: {e}")
+
+# Function to replace chart data
+def replace_chart_data(prs, input_data):
+    for slide in prs.slides:
+        for shape in slide.shapes:
+            if shape.has_chart:  # Check if the shape is a chart
+                chart = shape.chart
+                workbook_part = chart.part.related_parts[chart.chart_workbook_part._id]
+                
+                # Save the embedded Excel workbook to a temporary file
+                temp_dir = tempfile.mkdtemp()
+                temp_excel_path = os.path.join(temp_dir, 'temp.xlsx')
+                
+                with open(temp_excel_path, 'wb') as temp_excel_file:
+                    temp_excel_file.write(workbook_part.blob)
+
+                # Open the Excel file with xlwings and update data
+                app = xw.App(visible=False)  # Start Excel application in background
+                workbook = xw.Book(temp_excel_path)
+
+                sheet = workbook.sheets[0]  # Get the first sheet
+
+                # Replace the data for rows 2-4 and columns 1-4 with input_data
+                for i, row_data in enumerate(input_data):
+                    sheet.range(f'A{i+2}:D{i+2}').value = row_data
+
+                workbook.save(temp_excel_path)
+                workbook.close()
+                app.quit()
+
+                # Replace the existing embedded workbook with the updated one
+                with open(temp_excel_path, 'rb') as updated_excel_file:
+                    updated_excel_blob = updated_excel_file.read()
+                workbook_part._blob = updated_excel_blob
+                
+                # Cleanup
+                os.remove(temp_excel_path)
+                os.rmdir(temp_dir)
+
+# Function to apply Excel replacements
+def apply_excel_replacements(prs):
+    try:
+        replacement_lines = entry_excel.get("1.0", tk.END).strip().splitlines()
+        input_data = []
+
+        for line in replacement_lines:
+            try:
+                row_data = [float(value) for value in line.split()]
+                if len(row_data) != 4:
+                    raise ValueError("Each line must contain exactly four values.")
+                input_data.append(row_data)
+            except ValueError as ve:
+                messagebox.showerror("Error", str(ve))
+                return
+
+        if len(input_data) != 3:
+            messagebox.showerror("Error", "There must be exactly three lines of input data.")
+            return
+
+        replace_chart_data(prs, input_data)
+        messagebox.showinfo("Success", "Excel replacements applied.")
+    except Exception as e:
+        messagebox.showerror("Error", f"An error occurred: {e}")
+
+# Function to save the presentation
+def save_changes(prs):
+    if prs:
+        save_path = filedialog.asksaveasfilename(
+            defaultextension=".pptx", filetypes=[("PowerPoint Files", "*.pptx")]
+        )
+        if save_path:
+            prs.save(save_path)
+            messagebox.showinfo("Success", f"Changes saved to {save_path}")
+    else:
+        messagebox.showerror("Error", "No presentation loaded.")
+
+# Function to apply all replacements
+def apply_all_replacements():
+    prs = load_presentation()
+    if prs:
+        apply_saw_replacements(prs)
+        apply_combined_replacements(prs)
+        apply_excel_replacements(prs)
+        save_changes(prs)
+
+# Initialize the replacements dictionary
+replacements = {}
+
+# Set up the main window
+root = tk.Tk()
+root.title("PowerPoint Text Replacer")
+
+# Set up the notebook (tabs)
+notebook = ttk.Notebook(root)
+notebook.grid(row=0, column=0, padx=10, pady=10)
+
+# First tab for SAW replacements
+tab1 = ttk.Frame(notebook)
+notebook.add(tab1, text="SAW Replacements")
+
+# File selection for SAW Replacements
+tk.Label(tab1, text="Select PowerPoint File:").grid(row=0, column=0, padx=10, pady=5)
+entry_file_path = tk.Entry(tab1, width=50)
+entry_file_path.grid(row=0, column=1, padx=10, pady=5)
+tk.Button(tab1, text="Browse", command=browse_file).grid(row=0, column=2, padx=10, pady=5)
+
+# Default replacement input for SAW Replacements
+tk.Button(tab1, text="Load SAW01 to SAW90", command=add_default_replacements).grid(row=1, column=1, padx=10, pady=5)
+
+# Replacement input area for SAW Replacements
+tk.Label(tab1, text="Replacement Pairs (one per line):").grid(row=2, column=0, padx=10, pady=5)
+entry_replacements = tk.Text(tab1, width=50, height=15)
+entry_replacements.grid(row=2, column=1, padx=10, pady=5)
+
+# Second tab for combined replacements
+tab2 = ttk.Frame(notebook)
+notebook.add(tab2, text="Combined Replacements")
+
+# Input area for combined replacements
+tk.Label(tab2, text="Enter combined values:").grid(row=0, column=0, padx=10, pady=5)
+entry_combined = tk.Text(tab2, width=50, height=10)
+entry_combined.grid(row=1, column=0, padx=10, pady=5)
+
+# Third tab for Excel table replacements
+tab3 = ttk.Frame(notebook)
+notebook.add(tab3, text="Excel Replacements")
+
+# Input area for Excel replacements
+tk.Label(tab3, text="Enter Excel values (4 values per line):").grid(row=0, column=0, padx=10, pady=5)
+entry_excel = tk.Text(tab3, width=50, height=10)
+entry_excel.grid(row=1, column=0, padx=10, pady=5)
+
+# Button to apply all changes and save
+btn_save_changes = tk.Button(root, text="Save Changes", command=apply_all_replacements)
+btn_save_changes.grid(row=1, column=0, padx=10, pady=10)
+
+root.mainloop()
