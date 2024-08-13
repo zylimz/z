@@ -32,8 +32,8 @@ def update_embedded_excel(ppt_file, data_sets):
                     chart.ChartData.Activate()
                     
                     # Access embedded Excel
-                    workbook_path = os.path.abspath(chart.ChartData.Workbook.FullName)
-                    workbook = excel_app.Workbooks.Open(workbook_path)
+                    chart_data = chart.ChartData
+                    workbook = chart_data.Workbook
                     worksheet = workbook.Worksheets(1)
 
                     # Update values in the embedded Excel
