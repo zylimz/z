@@ -51,10 +51,11 @@ def update_embedded_excel(ppt_file, data_sets):
                                         if percentage_value > 85:
                                             cell.Font.Color = -16776961  # Red color
                                             worksheet.Cells(i + 2, 1).Font.Color = -16776961  # Column 1 red if any in 2-4 is >85%
-                                        if j == 3 and percentage_value < 85:  # Column 4 specific condition
+                                        if j == 3 and (percentage_value < 85 or not value.endswith('%')):  # Column 4 condition for <85% or not a percentage
                                             cell.Font.Color = 65535  # Yellow color
                                     except ValueError:
-                                        pass  # Skip formatting if the value is not a valid percentage
+                                        if j == 3:  # If not a valid percentage value in column 4
+                                            cell.Font.Color = 65535  # Yellow color
 
                     # Simulate user actions to ensure updates
                     workbook.Application.Calculate()  # Force recalculation
