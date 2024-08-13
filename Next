@@ -57,11 +57,13 @@ def update_embedded_excel(ppt_file, data_sets):
                                         if j == 3:  # If not a valid percentage value in column 4
                                             cell.Font.Color = 65535  # Yellow color
 
-                    # Simulate user actions to ensure updates
-                    workbook.Application.Calculate()  # Force recalculation
-                    time.sleep(1)  # Allow time for recalculation and updates
+                    # Force recalculation and simulate user interactions
+                    workbook.Application.CalculateFull()  # Force full recalculation
+                    time.sleep(2)  # Allow time for recalculation and updates
 
-                    # Close the embedded Excel without saving
+                    # Save workbook to force updates, then close without saving again
+                    workbook.Save()
+                    time.sleep(1)  # Allow time for the save operation
                     workbook.Close(SaveChanges=False)
 
                     # Continue with the next data set
