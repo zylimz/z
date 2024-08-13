@@ -127,10 +127,10 @@ def replace_chart_data(prs, input_data):
 
                 for i, row_data in enumerate(input_data):
                     for j, value in enumerate(row_data):
-                        if j == 0:
+                        if j == 0:  # First column (dates)
                             sheet.cells[i+2, j+1].value = value
                             sheet.cells[i+2, j+1].number_format = 'mmm-yy'
-                        elif j >= 1 and j <= 3:
+                        elif j >= 1 and j <= 3:  # Columns 2 to 4 (percentages)
                             sheet.cells[i+2, j+1].value = float(value) / 100
                             sheet.cells[i+2, j+1].number_format = '0.00%'
 
@@ -157,6 +157,17 @@ def apply_all_replacements():
         replace_chart_data(prs, input_data)
 
         save_changes(prs)
+
+def save_changes(prs):
+    if prs:
+        save_path = filedialog.asksaveasfilename(
+            defaultextension=".pptx", filetypes=[("PowerPoint Files", "*.pptx")]
+        )
+        if save_path:
+            prs.save(save_path)
+            messagebox.showinfo("Success", f"Changes saved to {save_path}")
+    else:
+        messagebox.showerror("Error", "No presentation loaded.")
 
 # Initialize the replacements dictionary
 replacements = {}
