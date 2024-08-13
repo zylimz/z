@@ -13,7 +13,7 @@ def browse_file():
 
 def update_embedded_excel(ppt_file, data_sets):
     try:
-        # Ensure the PowerPoint and Excel applications are started
+        # Initialize PowerPoint and Excel applications
         powerpoint = win32com.client.Dispatch("PowerPoint.Application")
         presentation = powerpoint.Presentations.Open(os.path.abspath(ppt_file), ReadOnly=False)
         excel_app = win32com.client.Dispatch("Excel.Application")
@@ -32,7 +32,8 @@ def update_embedded_excel(ppt_file, data_sets):
                     chart.ChartData.Activate()
                     
                     # Access embedded Excel
-                    workbook = excel_app.Workbooks(os.path.abspath(chart.ChartData.Workbook.FullName))
+                    workbook_path = os.path.abspath(chart.ChartData.Workbook.FullName)
+                    workbook = excel_app.Workbooks.Open(workbook_path)
                     worksheet = workbook.Worksheets(1)
 
                     # Update values in the embedded Excel
@@ -50,8 +51,9 @@ def update_embedded_excel(ppt_file, data_sets):
 
                     # Close the embedded Excel without saving
                     workbook.Close(SaveChanges=False)
-
-                    data_index += 1  # Move to the next data set
+                    
+                    # Continue with the next data set
+                    data_index += 1
                     break  # Move to the next slide after modifying the chart
 
         # Keep PowerPoint open
