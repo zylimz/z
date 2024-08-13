@@ -6,7 +6,6 @@ from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 import xlwings as xw
 
-# Function to browse for a PowerPoint file
 def browse_file():
     filepath = filedialog.askopenfilename(
         filetypes=[("PowerPoint Files", "*.pptx")]
@@ -14,14 +13,12 @@ def browse_file():
     entry_file_path.delete(0, tk.END)
     entry_file_path.insert(0, filepath)
 
-# Function to add default replacements for SAW replacements
 def add_default_replacements():
     entry_replacements.delete("1.0", tk.END)
     for i in range(1, 91):
         old_text = f"SAW{i:02}"
         entry_replacements.insert(tk.END, f"{old_text} -> \n")
 
-# Function to load the PowerPoint presentation
 def load_presentation():
     ppt_path = entry_file_path.get()
     if not ppt_path:
@@ -29,7 +26,6 @@ def load_presentation():
         return None
     return Presentation(ppt_path)
 
-# Function to apply SAW replacements
 def apply_saw_replacements(prs):
     try:
         replacement_lines = entry_replacements.get("1.0", tk.END).strip().splitlines()
@@ -51,11 +47,10 @@ def apply_saw_replacements(prs):
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
 
-# Function to process each shape in the presentation
 def process_shape(shape):
     if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
         for s in shape.shapes:
-            process_shape(s)  # Recursive call to handle nested groups
+            process_shape(s)
     elif shape.has_text_frame:
         text_frame = shape.text_frame
         replace_text_in_text_frame(text_frame)
@@ -67,19 +62,17 @@ def process_shape(shape):
                 text_frame = cell.text_frame
                 replace_text_in_text_frame(text_frame)
 
-# Function to replace text in text frames
 def replace_text_in_text_frame(text_frame):
     if text_frame is not None:
         for paragraph in text_frame.paragraphs:
-            full_text = ''.join([run.text for run in paragraph.runs])  # Combine all runs' text
+            full_text = ''.join([run.text for run in paragraph.runs])
             for old_text, new_text in replacements.items():
                 if old_text in full_text:
                     full_text = full_text.replace(old_text, new_text)
                     for run in paragraph.runs:
-                        run.text = ''  # Clear existing text
-                    paragraph.runs[0].text = full_text  # Set the first run to the new text
+                        run.text = ''
+                    paragraph.runs[0].text = full_text
 
-# Function to search and replace values in tables
 def search_and_replace_value(prs, search_value, replacement_value):
     for slide in prs.slides:
         for shape in slide.shapes:
@@ -95,9 +88,8 @@ def search_and_replace_value(prs, search_value, replacement_value):
                                         start = run.text.find(search_value)
                                         end = start + len(search_value)
                                         run.text = run.text[:start] + replacement_value + run.text[end:]
-                                        return  # Exit after the first match per slide
+                                        return
 
-# Function to apply combined replacements
 def apply_combined_replacements(prs):
     try:
         replacement_lines = entry_combined.get("1.0", tk.END).strip().splitlines()
@@ -116,88 +108,54 @@ def apply_combined_replacements(prs):
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
 
-# Function to replace chart data
 def replace_chart_data(prs, input_data):
     for slide in prs.slides:
         for shape in slide.shapes:
-            if shape.has_chart:  # Check if the shape is a chart
+            if shape.has_chart:
                 chart = shape.chart
                 workbook_part = chart.part.related_parts[chart.chart_workbook_part._id]
                 
-                # Save the embedded Excel workbook to a temporary file
                 temp_dir = tempfile.mkdtemp()
                 temp_excel_path = os.path.join(temp_dir, 'temp.xlsx')
                 
                 with open(temp_excel_path, 'wb') as temp_excel_file:
                     temp_excel_file.write(workbook_part.blob)
 
-                # Open the Excel file with xlwings and update data
-                app = xw.App(visible=False)  # Start Excel application in background
+                app = xw.App(visible=False)
                 workbook = xw.Book(temp_excel_path)
-                sheet = workbook.sheets[0]  # Get the first sheet
+                sheet = workbook.sheets[0]
 
-                # Replace the data for rows 2-4 and columns 1-4 with input_data
                 for i, row_data in enumerate(input_data):
                     for j, value in enumerate(row_data):
-                        sheet.cells[i+2, j+1].value = value  # Insert plain text value
+                        if j == 0:
+                            sheet.cells[i+2, j+1].value = value
+                            sheet.cells[i+2, j+1].number_format = 'mmm-yy'
+                        elif j >= 1 and j <= 3:
+                            sheet.cells[i+2, j+1].value = float(value) / 100
+                            sheet.cells[i+2, j+1].number_format = '0.00%'
 
                 workbook.save(temp_excel_path)
                 workbook.close()
                 app.quit()
 
-                # Replace the existing embedded workbook with the updated one
                 with open(temp_excel_path, 'rb') as updated_excel_file:
                     updated_excel_blob = updated_excel_file.read()
                 workbook_part._blob = updated_excel_blob
                 
-                # Cleanup
                 os.remove(temp_excel_path)
                 os.rmdir(temp_dir)
 
-# Function to apply Excel replacements
-def apply_excel_replacements(prs):
-    try:
-        replacement_lines = entry_excel.get("1.0", tk.END).strip().splitlines()
-        input_data = []
-
-        for line in replacement_lines:
-            try:
-                row_data = [float(value) for value in line.split()]
-                if len(row_data) != 4:
-                    raise ValueError("Each line must contain exactly four values.")
-                input_data.append(row_data)
-            except ValueError as ve:
-                messagebox.showerror("Error", str(ve))
-                return
-
-        if len(input_data) != 3:
-            messagebox.showerror("Error", "There must be exactly three lines of input data.")
-            return
-
-        replace_chart_data(prs, input_data)
-        messagebox.showinfo("Success", "Excel replacements applied.")
-    except Exception as e:
-        messagebox.showerror("Error", f"An error occurred: {e}")
-
-# Function to save the presentation
-def save_changes(prs):
-    if prs:
-        save_path = filedialog.asksaveasfilename(
-            defaultextension=".pptx", filetypes=[("PowerPoint Files", "*.pptx")]
-        )
-        if save_path:
-            prs.save(save_path)
-            messagebox.showinfo("Success", f"Changes saved to {save_path}")
-    else:
-        messagebox.showerror("Error", "No presentation loaded.")
-
-# Function to apply all replacements
 def apply_all_replacements():
     prs = load_presentation()
     if prs:
         apply_saw_replacements(prs)
         apply_combined_replacements(prs)
-        apply_excel_replacements(prs)
+
+        # Extract Excel data and apply replacements
+        excel_lines = entry_excel.get("1.0", tk.END).strip().splitlines()
+        input_data = [line.split() for line in excel_lines]
+        replace_chart_data(prs, input_data)
+
         save_changes(prs)
 
 # Initialize the replacements dictionary
