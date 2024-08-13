@@ -1,45 +1,43 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox
 import win32com.client
 
-def browse_file():
-    filepath = filedialog.askopenfilename(
-        filetypes=[("PowerPoint Files", "*.pptx")]
-    )
-    entry_file_path.delete(0, tk.END)
-    entry_file_path.insert(0, filepath)
-
-def update_embedded_excel(ppt_file, data_lines):
+def update_embedded_excel(ppt_file, values):
     try:
-        # Initialize PowerPoint application
+        # Initialize PowerPoint and Excel applications
         powerpoint = win32com.client.Dispatch("PowerPoint.Application")
         presentation = powerpoint.Presentations.Open(ppt_file)
         excel_app = win32com.client.Dispatch("Excel.Application")
 
+        # Loop through slides to find charts
         for slide in presentation.Slides:
             for shape in slide.Shapes:
                 if shape.HasChart:
                     chart = shape.Chart
                     chart.ChartData.Activate()
                     
-                    # Access embedded Excel
+                    # Access the embedded Excel file
                     workbook = excel_app.Workbooks(chart.ChartData.Workbook.FullName)
                     worksheet = workbook.Worksheets(1)
 
-                    # Update the worksheet with data
-                    for i, row_data in enumerate(data_lines):
-                        if i < 3:  # Process only the second, third, and fourth rows
-                            for j in range(4):  # Update only the first four columns
-                                value = row_data[j]
-                                cell = worksheet.Cells(i + 2, j + 1]  # Adjust for proper row/column indexing
-                                cell.Value = value
+                    # Modify values in the embedded Excel based on the values provided
+                    for i, row_values in enumerate(values):
+                        for j, value in enumerate(row_values):
+                            cell = worksheet.Cells(i + 2, j + 1)  # Adjust for proper row/column indexing
+                            cell.Value = value
+                            if j == 0:  # Apply specific formatting to the first column
+                                cell.NumberFormat = 'mmm-yy'
+                            else:  # Apply percentage formatting to columns 2-4
+                                cell.NumberFormat = '0.00%'
 
+                    # Save and close the workbook
                     workbook.Save()
                     workbook.Close()
                     
                     # Exit the loop after modifying the first chart found
                     break
 
+        # Save and close the presentation
         presentation.Save()
         presentation.Close()
         powerpoint.Quit()
@@ -50,50 +48,83 @@ def update_embedded_excel(ppt_file, data_lines):
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
 
-def apply_all_replacements():
-    ppt_path = entry_file_path.get()
-    if not ppt_path:
+def browse_file():
+    filepath = filedialog.askopenfilename(
+        filetypes=[("PowerPoint Files", "*.pptx")]
+    )
+    entry_file_path.delete(0, tk.END)
+    entry_file_path.insert(0, filepath)
+
+def apply_changes():
+    ppt_file = entry_file_path.get()
+    if not ppt_file:
         messagebox.showerror("Error", "Please select a PowerPoint file.")
         return
-
+    
     try:
-        data_lines = entry_excel.get("1.0", tk.END).strip().splitlines()
-        input_data = [line.split() for line in data_lines]
-        
-        if len(input_data) != 3 or any(len(row) != 4 for row in input_data):
-            messagebox.showerror("Error", "Input must contain exactly 3 lines with 4 values each.")
-            return
-
-        update_embedded_excel(ppt_path, input_data)
-        
+        values = [
+            [entry_row2_col1.get(), entry_row2_col2.get(), entry_row2_col3.get(), entry_row2_col4.get()],
+            [entry_row3_col1.get(), entry_row3_col2.get(), entry_row3_col3.get(), entry_row3_col4.get()],
+            [entry_row4_col1.get(), entry_row4_col2.get(), entry_row4_col3.get(), entry_row4_col4.get()]
+        ]
+        update_embedded_excel(ppt_file, values)
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
 
 # Set up the main window
 root = tk.Tk()
-root.title("PowerPoint Excel Table Updater")
-
-# Set up the notebook (tabs)
-notebook = ttk.Notebook(root)
-notebook.grid(row=0, column=0, padx=10, pady=10)
-
-# Tab for Excel replacements
-tab_excel = ttk.Frame(notebook)
-notebook.add(tab_excel, text="Excel Replacements")
+root.title("Update Embedded Excel in PowerPoint")
 
 # File selection
-tk.Label(tab_excel, text="Select PowerPoint File:").grid(row=0, column=0, padx=10, pady=5)
-entry_file_path = tk.Entry(tab_excel, width=50)
+tk.Label(root, text="Select PowerPoint File:").grid(row=0, column=0, padx=10, pady=5)
+entry_file_path = tk.Entry(root, width=50)
 entry_file_path.grid(row=0, column=1, padx=10, pady=5)
-tk.Button(tab_excel, text="Browse", command=browse_file).grid(row=0, column=2, padx=10, pady=5)
+tk.Button(root, text="Browse", command=browse_file).grid(row=0, column=2, padx=10, pady=5)
 
-# Input area for Excel replacements
-tk.Label(tab_excel, text="Enter values (3 lines, 4 values each):").grid(row=1, column=0, padx=10, pady=5)
-entry_excel = tk.Text(tab_excel, width=50, height=10)
-entry_excel.grid(row=2, column=0, columnspan=3, padx=10, pady=5)
+# Row 2 entries
+tk.Label(root, text="Row 2 Column 1:").grid(row=1, column=0, padx=10, pady=5)
+entry_row2_col1 = tk.Entry(root)
+entry_row2_col1.grid(row=1, column=1, padx=10, pady=5)
+tk.Label(root, text="Row 2 Column 2:").grid(row=1, column=2, padx=10, pady=5)
+entry_row2_col2 = tk.Entry(root)
+entry_row2_col2.grid(row=1, column=3, padx=10, pady=5)
+tk.Label(root, text="Row 2 Column 3:").grid(row=1, column=4, padx=10, pady=5)
+entry_row2_col3 = tk.Entry(root)
+entry_row2_col3.grid(row=1, column=5, padx=10, pady=5)
+tk.Label(root, text="Row 2 Column 4:").grid(row=1, column=6, padx=10, pady=5)
+entry_row2_col4 = tk.Entry(root)
+entry_row2_col4.grid(row=1, column=7, padx=10, pady=5)
 
-# Apply replacements button
-tk.Button(tab_excel, text="Apply Changes", command=apply_all_replacements).grid(row=3, column=0, columnspan=3, padx=10, pady=20)
+# Row 3 entries
+tk.Label(root, text="Row 3 Column 1:").grid(row=2, column=0, padx=10, pady=5)
+entry_row3_col1 = tk.Entry(root)
+entry_row3_col1.grid(row=2, column=1, padx=10, pady=5)
+tk.Label(root, text="Row 3 Column 2:").grid(row=2, column=2, padx=10, pady=5)
+entry_row3_col2 = tk.Entry(root)
+entry_row3_col2.grid(row=2, column=3, padx=10, pady=5)
+tk.Label(root, text="Row 3 Column 3:").grid(row=2, column=4, padx=10, pady=5)
+entry_row3_col3 = tk.Entry(root)
+entry_row3_col3.grid(row=2, column=5, padx=10, pady=5)
+tk.Label(root, text="Row 3 Column 4:").grid(row=2, column=6, padx=10, pady=5)
+entry_row3_col4 = tk.Entry(root)
+entry_row3_col4.grid(row=2, column=7, padx=10, pady=5)
+
+# Row 4 entries
+tk.Label(root, text="Row 4 Column 1:").grid(row=3, column=0, padx=10, pady=5)
+entry_row4_col1 = tk.Entry(root)
+entry_row4_col1.grid(row=3, column=1, padx=10, pady=5)
+tk.Label(root, text="Row 4 Column 2:").grid(row=3, column=2, padx=10, pady=5)
+entry_row4_col2 = tk.Entry(root)
+entry_row4_col2.grid(row=3, column=3, padx=10, pady=5)
+tk.Label(root, text="Row 4 Column 3:").grid(row=3, column=4, padx=10, pady=5)
+entry_row4_col3 = tk.Entry(root)
+entry_row4_col3.grid(row=3, column=5, padx=10, pady=5)
+tk.Label(root, text="Row 4 Column 4:").grid(row=3, column=6, padx=10, pady=5)
+entry_row4_col4 = tk.Entry(root)
+entry_row4_col4.grid(row=3, column=7, padx=10, pady=5)
+
+# Apply changes button
+tk.Button(root, text="Apply Changes", command=apply_changes).grid(row=4, column=0, columnspan=8, padx=10, pady=20)
 
 # Start the Tkinter main loop
 root.mainloop()
