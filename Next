@@ -17,16 +17,13 @@ def update_embedded_excel(ppt_file, data_sets):
         excel_app = win32com.client.Dispatch("Excel.Application")
         excel_app.Visible = False  # Ensure Excel is not visible
         
-        slide_index = 1  # Start from the first slide
+        data_index = 0  # Index for the current data set
 
-        for data_lines in data_sets:
-            # Ensure the slide index is within the range of slides
-            if slide_index > len(presentation.Slides):
-                break
-            
-            slide = presentation.Slides(slide_index)
-            
-            chart_found = False
+        # Iterate through all slides and shapes
+        for slide in presentation.Slides:
+            if data_index >= len(data_sets):
+                break  # Stop if all data sets have been applied
+
             for shape in slide.Shapes:
                 if shape.HasChart:
                     chart = shape.Chart
@@ -37,6 +34,7 @@ def update_embedded_excel(ppt_file, data_sets):
                     worksheet = workbook.Worksheets(1)
 
                     # Update values in the embedded Excel
+                    data_lines = data_sets[data_index]
                     for i, row_data in enumerate(data_lines):
                         if i < 3:  # Update only rows 2 to 4
                             for j in range(4):  # Update only columns 1 to 4
@@ -47,19 +45,14 @@ def update_embedded_excel(ppt_file, data_sets):
                     # Close the embedded Excel without saving
                     workbook.Close(SaveChanges=False)
                     
-                    chart_found = True
-                    break  # Exit the loop after modifying the first chart found
-            
-            if not chart_found:
-                messagebox.showwarning("Warning", f"No chart found on slide {slide_index}.")
-            
-            slide_index += 1  # Move to the next slide
+                    data_index += 1  # Move to the next data set
+                    break  # Move to the next slide after modifying the chart
 
         # Keep PowerPoint open
         # powerpoint.Quit()  # Uncomment if you want to close PowerPoint automatically
 
         messagebox.showinfo("Success", "Excel values updated successfully for all charts.")
-        
+
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred while updating chart data: {e}")
 
