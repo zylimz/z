@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, ttk
 import win32com.client
 
 def browse_file():
@@ -21,23 +21,18 @@ def update_embedded_excel(ppt_file, data_lines):
                 if shape.HasChart:
                     chart = shape.Chart
                     chart.ChartData.Activate()
-
+                    
                     # Access embedded Excel
                     workbook = excel_app.Workbooks(chart.ChartData.Workbook.FullName)
                     worksheet = workbook.Worksheets(1)
 
                     # Update the worksheet with data
                     for i, row_data in enumerate(data_lines):
-                        if i < 3:  # Process only the 3 rows (2, 3, 4)
+                        if i < 3:  # Process only the second, third, and fourth rows
                             for j in range(4):  # Update only the first four columns
                                 value = row_data[j]
-                                cell = worksheet.Cells(i + 2, j + 1)  # Adjust for proper row/column indexing
-                                if j == 0:
-                                    cell.Value = value
-                                    cell.NumberFormat = 'mmm-yy'
-                                elif 1 <= j <= 3:
-                                    cell.Value = float(value) / 100
-                                    cell.NumberFormat = '0.00%'
+                                cell = worksheet.Cells(i + 2, j + 1]  # Adjust for proper row/column indexing
+                                cell.Value = value
 
                     workbook.Save()
                     workbook.Close()
@@ -45,57 +40,60 @@ def update_embedded_excel(ppt_file, data_lines):
                     # Exit the loop after modifying the first chart found
                     break
 
-        # Save and close the presentation
         presentation.Save()
         presentation.Close()
         powerpoint.Quit()
         excel_app.Quit()
-
-        messagebox.showinfo("Success", "Excel table updated successfully.")
+        
+        messagebox.showinfo("Success", "Excel values updated successfully.")
         
     except Exception as e:
-        messagebox.showerror("Error", f"An error occurred while updating chart data: {e}")
+        messagebox.showerror("Error", f"An error occurred: {e}")
 
-def apply_updates():
-    ppt_file = entry_file_path.get()
-    if not ppt_file:
+def apply_all_replacements():
+    ppt_path = entry_file_path.get()
+    if not ppt_path:
         messagebox.showerror("Error", "Please select a PowerPoint file.")
         return
 
     try:
         data_lines = entry_excel.get("1.0", tk.END).strip().splitlines()
-        if len(data_lines) != 3:
-            messagebox.showerror("Error", "Input must contain exactly 3 lines.")
+        input_data = [line.split() for line in data_lines]
+        
+        if len(input_data) != 3 or any(len(row) != 4 for row in input_data):
+            messagebox.showerror("Error", "Input must contain exactly 3 lines with 4 values each.")
             return
 
-        # Process each line into a list of values
-        formatted_data = [line.split() for line in data_lines]
-        if any(len(row) != 4 for row in formatted_data):
-            messagebox.showerror("Error", "Each line must contain exactly 4 values separated by spaces.")
-            return
-
-        update_embedded_excel(ppt_file, formatted_data)
-    
+        update_embedded_excel(ppt_path, input_data)
+        
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
 
 # Set up the main window
 root = tk.Tk()
-root.title("Update Embedded Excel in PowerPoint")
+root.title("PowerPoint Excel Table Updater")
+
+# Set up the notebook (tabs)
+notebook = ttk.Notebook(root)
+notebook.grid(row=0, column=0, padx=10, pady=10)
+
+# Tab for Excel replacements
+tab_excel = ttk.Frame(notebook)
+notebook.add(tab_excel, text="Excel Replacements")
 
 # File selection
-tk.Label(root, text="Select PowerPoint File:").grid(row=0, column=0, padx=10, pady=5)
-entry_file_path = tk.Entry(root, width=50)
+tk.Label(tab_excel, text="Select PowerPoint File:").grid(row=0, column=0, padx=10, pady=5)
+entry_file_path = tk.Entry(tab_excel, width=50)
 entry_file_path.grid(row=0, column=1, padx=10, pady=5)
-tk.Button(root, text="Browse", command=browse_file).grid(row=0, column=2, padx=10, pady=5)
+tk.Button(tab_excel, text="Browse", command=browse_file).grid(row=0, column=2, padx=10, pady=5)
 
 # Input area for Excel replacements
-tk.Label(root, text="Enter Excel Table Data (3 lines of 4 values each):").grid(row=1, column=0, padx=10, pady=5)
-entry_excel = tk.Text(root, width=60, height=10)
-entry_excel.grid(row=1, column=1, padx=10, pady=5)
+tk.Label(tab_excel, text="Enter values (3 lines, 4 values each):").grid(row=1, column=0, padx=10, pady=5)
+entry_excel = tk.Text(tab_excel, width=50, height=10)
+entry_excel.grid(row=2, column=0, columnspan=3, padx=10, pady=5)
 
-# Apply updates button
-tk.Button(root, text="Update Excel Table", command=apply_updates).grid(row=2, column=0, columnspan=3, padx=10, pady=20)
+# Apply replacements button
+tk.Button(tab_excel, text="Apply Changes", command=apply_all_replacements).grid(row=3, column=0, columnspan=3, padx=10, pady=20)
 
 # Start the Tkinter main loop
 root.mainloop()
