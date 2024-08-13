@@ -50,10 +50,6 @@ def update_embedded_excel(ppt_file, data_sets):
                     # Close the embedded Excel without saving
                     workbook.Close(SaveChanges=False)
 
-                    # Update chart
-                    chart.ChartData.Activate()
-                    chart.ChartData.Workbook.Close(SaveChanges=False)
-
                     data_index += 1  # Move to the next data set
                     break  # Move to the next slide after modifying the chart
 
