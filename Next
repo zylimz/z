@@ -125,7 +125,8 @@ def update_chart_data(ppt_file, data_lines):
                     # Update the worksheet with data
                     for i, row_data in enumerate(data_lines):
                         if i < 3:  # Process only the second, third, and fourth rows
-                            for j, value in enumerate(row_data):
+                            for j in range(4):  # Update only the first four columns
+                                value = row_data[j]
                                 cell = worksheet.Cells[i + 2, j + 1]  # Adjust for proper row/column indexing
                                 if j == 0:
                                     cell.Value = value
