@@ -18,7 +18,7 @@ def update_embedded_excel(ppt_file, data_sets):
         presentation = powerpoint.Presentations.Open(os.path.abspath(ppt_file), ReadOnly=False)
         excel_app = win32com.client.Dispatch("Excel.Application")
         excel_app.Visible = False  # Ensure Excel is not visible
-        
+
         data_index = 0  # Index for the current data set
 
         # Iterate through all slides and shapes
@@ -30,7 +30,7 @@ def update_embedded_excel(ppt_file, data_sets):
                 if shape.HasChart:
                     chart = shape.Chart
                     chart.ChartData.Activate()
-                    
+
                     # Access embedded Excel
                     chart_data = chart.ChartData
                     workbook = chart_data.Workbook
@@ -40,10 +40,21 @@ def update_embedded_excel(ppt_file, data_sets):
                     data_lines = data_sets[data_index]
                     for i, row_data in enumerate(data_lines):
                         if i < 3:  # Update only rows 2 to 4
+                            # Update row values and apply color conditions
                             for j in range(4):  # Update only columns 1 to 4
                                 value = row_data[j]
                                 cell = worksheet.Cells(i + 2, j + 1)  # Adjust for proper row/column indexing
                                 cell.Value = value
+                                if j > 0:  # Columns 2 to 4
+                                    try:
+                                        percentage_value = float(value.strip('%'))
+                                        if percentage_value > 85:
+                                            cell.Font.Color = -16776961  # Red color
+                                            worksheet.Cells(i + 2, 1).Font.Color = -16776961  # Column 1 red if any in 2-4 is >85%
+                                        if j == 3 and percentage_value < 85:  # Column 4 specific condition
+                                            cell.Font.Color = 65535  # Yellow color
+                                    except ValueError:
+                                        pass  # Skip formatting if the value is not a valid percentage
 
                     # Simulate user actions to ensure updates
                     workbook.Application.Calculate()  # Force recalculation
@@ -51,7 +62,7 @@ def update_embedded_excel(ppt_file, data_sets):
 
                     # Close the embedded Excel without saving
                     workbook.Close(SaveChanges=False)
-                    
+
                     # Continue with the next data set
                     data_index += 1
                     break  # Move to the next slide after modifying the chart
@@ -59,7 +70,7 @@ def update_embedded_excel(ppt_file, data_sets):
         # Keep PowerPoint open
         # powerpoint.Quit()  # Uncomment if you want to close PowerPoint automatically
 
-        messagebox.showinfo("Success", "Excel values updated successfully for all charts.")
+        messagebox.showinfo("Success", "Excel values updated and colors applied successfully for all charts.")
 
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred while updating chart data: {e}")
