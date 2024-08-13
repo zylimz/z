@@ -114,14 +114,15 @@ def replace_chart_data(prs, input_data):
             for shape in slide.shapes:
                 if shape.has_chart:
                     chart = shape.chart
-                    chart_workbook = chart.chart_data
 
+                    # Export the embedded Excel file
                     temp_dir = tempfile.mkdtemp()
                     temp_excel_path = os.path.join(temp_dir, 'temp.xlsx')
 
                     with open(temp_excel_path, 'wb') as temp_excel_file:
-                        temp_excel_file.write(chart_workbook._blob)
+                        chart.chart_data.export(temp_excel_file)
 
+                    # Modify the Excel file
                     app = xw.App(visible=False)
                     workbook = xw.Book(temp_excel_path)
                     sheet = workbook.sheets[0]
@@ -139,10 +140,11 @@ def replace_chart_data(prs, input_data):
                     workbook.close()
                     app.quit()
 
+                    # Reinsert the updated Excel file
                     with open(temp_excel_path, 'rb') as updated_excel_file:
                         updated_excel_blob = updated_excel_file.read()
-                    chart_workbook._blob = updated_excel_blob
-                    
+                    chart.chart_data.update(updated_excel_blob)
+
                     os.remove(temp_excel_path)
                     os.rmdir(temp_dir)
 
@@ -210,8 +212,8 @@ notebook.add(tab2, text="Combined Replacements")
 
 # Input area for combined replacements
 tk.Label(tab2, text="Enter combined values:").grid(row=0, column=0, padx=10, pady=5)
-entry_combined = tk.Text(tab2, width=50, height=10)
-entry_combined.grid(row=1, column=0, padx=10, pady=5)
+entry_combined = tk.Text(tab2, width=50, height=15)
+entry_combined.grid(row=0, column=1, padx=10, pady=5)
 
 # Third tab for Excel replacements
 tab3 = ttk.Frame(notebook)
