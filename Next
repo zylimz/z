@@ -73,6 +73,7 @@ def apply_excel_replacements():
     try:
         # Get data from the text field
         data_lines = entry_excel.get("1.0", tk.END).strip().splitlines()
+        print(f"Raw input lines: {data_lines}")  # Debugging: print raw input lines
         if len(data_lines) % 3 != 0:
             messagebox.showerror("Error", "The number of lines must be a multiple of 3.")
             return
@@ -80,10 +81,12 @@ def apply_excel_replacements():
         input_data = []
         for i in range(0, len(data_lines), 3):
             set_lines = data_lines[i:i+3]
+            print(f"Processing set: {set_lines}")  # Debugging: print the current set of lines
             if len(set_lines) != 3:
                 messagebox.showerror("Error", "Each data set must contain exactly 3 lines of data.")
                 return
             data_lines = [line.split() for line in set_lines]
+            print(f"Split data lines: {data_lines}")  # Debugging: print split data lines
             if any(len(line) != 4 for line in data_lines):
                 messagebox.showerror("Error", "Each line in a data set must contain exactly 4 values separated by spaces.")
                 return
