@@ -1,10 +1,8 @@
-import os
-import tempfile
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
-import xlwings as xw
+import win32com.client
 
 def browse_file():
     filepath = filedialog.askopenfilename(
@@ -108,50 +106,43 @@ def apply_combined_replacements(prs):
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
 
-def replace_chart_data(prs, input_data):
+def update_chart_data(ppt_file, data_lines):
     try:
-        for slide in prs.slides:
-            for shape in slide.shapes:
-                if shape.has_chart:
-                    chart = shape.chart
+        powerpoint = win32com.client.Dispatch("PowerPoint.Application")
+        presentation = powerpoint.Presentations.Open(ppt_file)
 
-                    # Export the embedded Excel file
-                    temp_dir = tempfile.mkdtemp()
-                    temp_excel_path = os.path.join(temp_dir, 'temp.xlsx')
+        for slide in presentation.Slides:
+            for shape in slide.Shapes:
+                if shape.HasChart:
+                    chart = shape.Chart
+                    chart.ChartData.Activate()
+                    
+                    # Access embedded Excel
+                    excel_app = win32com.client.Dispatch("Excel.Application")
+                    workbook = excel_app.Workbooks(chart.ChartData.Workbook.FullName)
+                    worksheet = workbook.Worksheets(1)
 
-                    with open(temp_excel_path, 'wb') as temp_excel_file:
-                        chart.chart_data.export(temp_excel_file)
-
-                    # Modify the Excel file
-                    app = xw.App(visible=False)
-                    workbook = xw.Book(temp_excel_path)
-                    sheet = workbook.sheets[0]
-
-                    for i, row_data in enumerate(input_data):
+                    # Update the worksheet with data
+                    for i, row_data in enumerate(data_lines):
                         for j, value in enumerate(row_data):
-                            if j == 0:  # First column (dates)
-                                sheet.cells[i+1, j+1].value = value
-                                sheet.cells[i+1, j+1].number_format = 'mmm-yy'
-                            elif j >= 1 and j <= 3:  # Columns 2 to 4 (percentages)
-                                sheet.cells[i+1, j+1].value = float(value) / 100
-                                sheet.cells[i+1, j+1].number_format = '0.00%'
+                            if j == 0:
+                                worksheet.Cells[i + 2, j + 1].Value = value
+                                worksheet.Cells[i + 2, j + 1].NumberFormat = 'mmm-yy'
+                            elif j >= 1 and j <= 3:
+                                worksheet.Cells[i + 2, j + 1].Value = float(value) / 100
+                                worksheet.Cells[i + 2, j + 1].NumberFormat = '0.00%'
 
-                    workbook.save(temp_excel_path)
-                    workbook.close()
-                    app.quit()
+                    workbook.Save()
+                    workbook.Close()
+                    excel_app.Quit()
 
-                    # Reinsert the updated Excel file
-                    with open(temp_excel_path, 'rb') as updated_excel_file:
-                        updated_excel_blob = updated_excel_file.read()
-                    chart.chart_data.update(updated_excel_blob)
+        presentation.Save()
+        presentation.Close()
+        powerpoint.Quit()
 
-                    os.remove(temp_excel_path)
-                    os.rmdir(temp_dir)
-
-        prs.save(entry_file_path.get())
-        messagebox.showinfo("Success", "Excel table replacements applied.")
+        messagebox.showinfo("Success", "Chart data updated.")
     except Exception as e:
-        messagebox.showerror("Error", f"An error occurred while updating Excel tables: {e}")
+        messagebox.showerror("Error", f"An error occurred while updating chart data: {e}")
 
 def apply_all_replacements():
     prs = load_presentation()
@@ -162,7 +153,7 @@ def apply_all_replacements():
         # Extract Excel data and apply replacements
         excel_lines = entry_excel.get("1.0", tk.END).strip().splitlines()
         input_data = [line.split() for line in excel_lines]
-        replace_chart_data(prs, input_data)
+        update_chart_data(entry_file_path.get(), input_data)
 
         save_changes(prs)
 
