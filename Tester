@@ -1,11 +1,27 @@
+import tkinter as tk
+from tkinter import filedialog, messagebox, ttk
 import win32com.client
 import os
+
+def browse_file():
+    filepath = filedialog.askopenfilename(
+        filetypes=[("PowerPoint Files", "*.pptx")]
+    )
+    entry_file_path.delete(0, tk.END)
+    entry_file_path.insert(0, filepath)
+
+def load_presentation():
+    ppt_path = entry_file_path.get()
+    if not ppt_path:
+        messagebox.showerror("Error", "Please select a PowerPoint file.")
+        return None
+    return os.path.abspath(ppt_path)
 
 def update_embedded_excel_no_open(ppt_file, data_sets):
     try:
         # Initialize PowerPoint application
         powerpoint = win32com.client.Dispatch("PowerPoint.Application")
-        presentation = powerpoint.Presentations.Open(os.path.abspath(ppt_file), ReadOnly=False)
+        presentation = powerpoint.Presentations.Open(ppt_file, ReadOnly=False)
 
         data_index = 0  # Index for the current data set
 
@@ -42,23 +58,71 @@ def update_embedded_excel_no_open(ppt_file, data_sets):
         presentation.Close()
         powerpoint.Quit()
 
-        print("Excel values updated and charts refreshed successfully.")
+        messagebox.showinfo("Success", "Excel values updated and charts refreshed successfully.")
 
     except Exception as e:
-        print(f"An error occurred while updating chart data: {e}")
+        messagebox.showerror("Error", f"An error occurred while updating chart data: {e}")
 
-# Sample input data for testing
-data_sets = [
-    [["Jan-24", "90%", "88%", "89%"],
-     ["Feb-24", "82%", "80%", "79%"],
-     ["Mar-24", "85%", "84%", "83%"]],
-    [["Apr-24", "91%", "89%", "90%"],
-     ["May-24", "86%", "87%", "88%"],
-     ["Jun-24", "84%", "83%", "82%"]]
-]
+def apply_excel_replacements():
+    ppt_file = load_presentation()
+    if not ppt_file:
+        return
 
-# Path to your PowerPoint file
-ppt_file = "path_to_your_presentation.pptx"
+    try:
+        data_lines = entry_excel_data.get("1.0", tk.END).strip().splitlines()
+        data_sets = []
+        current_set = []
 
-# Call the function
-update_embedded_excel_no_open(ppt_file, data_sets)
+        for line in data_lines:
+            if line.strip():
+                values = line.split()
+                if len(values) == 4:
+                    current_set.append(values)
+                else:
+                    messagebox.showerror("Error", "Each line must contain exactly four values.")
+                    return
+                if len(current_set) == 3:
+                    data_sets.append(current_set)
+                    current_set = []
+
+        if current_set:
+            messagebox.showerror("Error", "Each data set must contain exactly three lines.")
+            return
+
+        if not data_sets:
+            messagebox.showerror("Error", "No valid data sets provided.")
+            return
+
+        update_embedded_excel_no_open(ppt_file, data_sets)
+
+    except Exception as e:
+        messagebox.showerror("Error", f"An error occurred while processing the input: {e}")
+
+# Initialize the main window
+root = tk.Tk()
+root.title("PowerPoint Embedded Excel Replacer")
+
+# Set up the notebook (tabs)
+notebook = ttk.Notebook(root)
+notebook.grid(row=0, column=0, padx=10, pady=10)
+
+# Tab for Embedded Excel Replacement
+tab_excel = ttk.Frame(notebook)
+notebook.add(tab_excel, text="Embedded Excel Replacement")
+
+# File selection for Embedded Excel Replacement
+tk.Label(tab_excel, text="Select PowerPoint File:").grid(row=0, column=0, padx=10, pady=5)
+entry_file_path = tk.Entry(tab_excel, width=50)
+entry_file_path.grid(row=0, column=1, padx=10, pady=5)
+tk.Button(tab_excel, text="Browse", command=browse_file).grid(row=0, column=2, padx=10, pady=5)
+
+# Input area for Excel data replacement
+tk.Label(tab_excel, text="Input Values (4 values per line, 3 lines per set):").grid(row=1, column=0, padx=10, pady=5)
+entry_excel_data = tk.Text(tab_excel, width=50, height=20)
+entry_excel_data.grid(row=2, column=0, columnspan=2, padx=10, pady=5)
+
+# Button to apply the Excel replacements
+tk.Button(root, text="Apply Excel Replacements", command=apply_excel_replacements).grid(row=3, column=0, padx=10, pady=20)
+
+# Start the Tkinter main loop
+root.mainloop()
