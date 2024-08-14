@@ -1,0 +1,64 @@
+import win32com.client
+import os
+
+def update_embedded_excel_no_open(ppt_file, data_sets):
+    try:
+        # Initialize PowerPoint application
+        powerpoint = win32com.client.Dispatch("PowerPoint.Application")
+        presentation = powerpoint.Presentations.Open(os.path.abspath(ppt_file), ReadOnly=False)
+
+        data_index = 0  # Index for the current data set
+
+        # Iterate through all slides and shapes
+        for slide in presentation.Slides:
+            if data_index >= len(data_sets):
+                break  # Stop if all data sets have been applied
+
+            for shape in slide.Shapes:
+                if shape.HasChart:
+                    chart = shape.Chart
+                    # Access embedded Excel without opening it
+                    chart_data = chart.ChartData
+                    workbook = chart_data.Workbook
+                    worksheet = workbook.Worksheets(1)
+
+                    # Update values in the embedded Excel
+                    data_lines = data_sets[data_index]
+                    for i, row_data in enumerate(data_lines):
+                        if i < 3:  # Update only rows 2 to 4
+                            for j in range(4):  # Update only columns 1 to 4
+                                cell = worksheet.Cells(i + 2, j + 1)  # Adjust for proper row/column indexing
+                                cell.Value = row_data[j]
+
+                    # Refresh the chart to reflect updated data
+                    chart.Refresh()
+
+                    # Continue with the next data set
+                    data_index += 1
+                    break  # Move to the next slide after modifying the chart
+
+        # Save and close the PowerPoint presentation
+        presentation.Save()
+        presentation.Close()
+        powerpoint.Quit()
+
+        print("Excel values updated and charts refreshed successfully.")
+
+    except Exception as e:
+        print(f"An error occurred while updating chart data: {e}")
+
+# Sample input data for testing
+data_sets = [
+    [["Jan-24", "90%", "88%", "89%"],
+     ["Feb-24", "82%", "80%", "79%"],
+     ["Mar-24", "85%", "84%", "83%"]],
+    [["Apr-24", "91%", "89%", "90%"],
+     ["May-24", "86%", "87%", "88%"],
+     ["Jun-24", "84%", "83%", "82%"]]
+]
+
+# Path to your PowerPoint file
+ppt_file = "path_to_your_presentation.pptx"
+
+# Call the function
+update_embedded_excel_no_open(ppt_file, data_sets)
