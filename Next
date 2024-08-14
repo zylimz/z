@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
+import threading
 import win32com.client
 import time
 import os
@@ -69,9 +70,6 @@ def update_embedded_excel(ppt_file, data_sets):
                     data_index += 1
                     break  # Move to the next slide after modifying the chart
 
-        # Keep PowerPoint open
-        # powerpoint.Quit()  # Uncomment if you want to close PowerPoint automatically
-
         messagebox.showinfo("Success", "Excel values updated and colors applied successfully for all charts.")
 
     except Exception as e:
@@ -108,8 +106,8 @@ def apply_excel_replacements():
             messagebox.showerror("Error", "No valid data sets found.")
             return
 
-        # Update Excel data in PowerPoint
-        update_embedded_excel(ppt_file, input_data)
+        # Run the update process in a background thread
+        threading.Thread(target=update_embedded_excel, args=(ppt_file, input_data)).start()
 
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
