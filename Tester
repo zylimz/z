@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import win32com.client
 import os
+import threading
 
 def browse_file():
     filepath = filedialog.askopenfilename(
@@ -17,13 +18,14 @@ def load_presentation():
         return None
     return os.path.abspath(ppt_path)
 
-def update_embedded_excel_no_open(ppt_file, data_sets):
+def update_embedded_excel_no_open(ppt_file, data_sets, progress_var):
     try:
         # Initialize PowerPoint application
         powerpoint = win32com.client.Dispatch("PowerPoint.Application")
         presentation = powerpoint.Presentations.Open(ppt_file, ReadOnly=False)
 
         data_index = 0  # Index for the current data set
+        total_shapes = sum(1 for slide in presentation.Slides for shape in slide.Shapes if shape.HasChart)
 
         # Iterate through all slides and shapes
         for slide in presentation.Slides:
@@ -46,12 +48,29 @@ def update_embedded_excel_no_open(ppt_file, data_sets):
                                 cell = worksheet.Cells(i + 2, j + 1)  # Adjust for proper row/column indexing
                                 cell.Value = row_data[j]
 
+                                # Apply conditional formatting
+                                if j > 0:  # Columns 2 to 4
+                                    try:
+                                        value = float(row_data[j].strip('%'))  # Remove percentage sign and convert to float
+                                        if value > 85:
+                                            cell.Font.Color = 0xFF0000  # Red for values > 85%
+                                            worksheet.Cells(i + 2, 1).Font.Color = 0xFF0000  # Also change column 1 to red
+                                        elif j == 3 and value < 85:
+                                            cell.Font.Color = 0xFFFF00  # Yellow for column 4 values < 85%
+                                    except ValueError:
+                                        if j == 3:
+                                            cell.Font.Color = 0xFFFF00  # Yellow for non-numeric values in column 4
+
                     # Refresh the chart to reflect updated data
                     chart.Refresh()
 
-                    # Continue with the next data set
+                    # Update progress bar
                     data_index += 1
-                    break  # Move to the next slide after modifying the chart
+                    progress_var.set((data_index / total_shapes) * 100)
+                    progress_bar.update()
+
+                    if data_index >= len(data_sets):
+                        break  # Stop if all data sets have been applied
 
         # Save and close the PowerPoint presentation
         presentation.Save()
@@ -62,6 +81,11 @@ def update_embedded_excel_no_open(ppt_file, data_sets):
 
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred while updating chart data: {e}")
+
+    finally:
+        # Reset the progress bar
+        progress_var.set(0)
+        progress_bar.update()
 
 def apply_excel_replacements():
     ppt_file = load_presentation()
@@ -93,7 +117,9 @@ def apply_excel_replacements():
             messagebox.showerror("Error", "No valid data sets provided.")
             return
 
-        update_embedded_excel_no_open(ppt_file, data_sets)
+        # Run the update process in a separate thread
+        update_thread = threading.Thread(target=update_embedded_excel_no_open, args=(ppt_file, data_sets, progress_var))
+        update_thread.start()
 
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred while processing the input: {e}")
@@ -121,8 +147,13 @@ tk.Label(tab_excel, text="Input Values (4 values per line, 3 lines per set):").g
 entry_excel_data = tk.Text(tab_excel, width=50, height=20)
 entry_excel_data.grid(row=2, column=0, columnspan=2, padx=10, pady=5)
 
+# Progress bar
+progress_var = tk.DoubleVar()
+progress_bar = ttk.Progressbar(root, variable=progress_var, maximum=100)
+progress_bar.grid(row=3, column=0, padx=10, pady=10, sticky="we")
+
 # Button to apply the Excel replacements
-tk.Button(root, text="Apply Excel Replacements", command=apply_excel_replacements).grid(row=3, column=0, padx=10, pady=20)
+tk.Button(root, text="Apply Excel Replacements", command=apply_excel_replacements).grid(row=4, column=0, padx=10, pady=20)
 
 # Start the Tkinter main loop
 root.mainloop()
