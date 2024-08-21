@@ -1,162 +1,131 @@
+import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.dml.color import RGBColor
-import time
-import threading
 
-CHUNK_SIZE = 5  # Adjusted chunk size
-DELAY = 0.1  # Delay between processing chunks
+# Helper function to run a function in a separate thread
+def run_in_background(func):
+    threading.Thread(target=func).start()
 
-def browse_file():
-    filepath = filedialog.askopenfilename(
-        filetypes=[("PowerPoint Files", "*.pptx")]
-    )
-    entry_file_path.delete(0, tk.END)
-    entry_file_path.insert(0, filepath)
-
-def add_default_replacements():
-    entry_replacements.delete("1.0", tk.END)
-    for i in range(1, 91):
-        old_text = f"SAW{i:02}"
-        entry_replacements.insert(tk.END, f"{old_text} -> \n")
-
+# Load the PowerPoint presentation
 def load_presentation():
-    ppt_path = entry_file_path.get()
-    if not ppt_path:
-        messagebox.showerror("Error", "Please select a PowerPoint file.")
+    file_path = filedialog.askopenfilename(filetypes=[("PowerPoint files", "*.pptx")])
+    if not file_path:
+        messagebox.showerror("Error", "No file selected.")
         return None
-    return Presentation(ppt_path)
-
-def apply_saw_replacements(prs):
     try:
-        replacement_lines = entry_replacements.get("1.0", tk.END).strip().splitlines()
-        replacements.clear()
+        return Presentation(file_path)
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to load presentation: {e}")
+        return None
 
-        for i, line in enumerate(replacement_lines):
-            old_text = f"SAW{i+1:02}"
-            if '->' in line:
-                _, new_text = line.split('->')
-                new_text = new_text.strip()
-                replacements[old_text] = new_text
-            else:
-                replacements[old_text] = line.strip()
+# Save the modified PowerPoint presentation
+def save_changes(prs):
+    save_path = filedialog.asksaveasfilename(defaultextension=".pptx", filetypes=[("PowerPoint files", "*.pptx")])
+    if not save_path:
+        messagebox.showerror("Error", "No save location selected.")
+        return
+    try:
+        prs.save(save_path)
+        messagebox.showinfo("Success", "Presentation saved successfully.")
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to save presentation: {e}")
 
-        for slide in prs.slides:
-            for shape in slide.shapes:
-                process_shape(shape)
-        messagebox.showinfo("Success", "SAW replacements applied.")
+# Function to replace "Draft Template" text on the first slide
+def replace_draft_template(prs, new_text):
+    try:
+        first_slide = prs.slides[0]  # Get the first slide
+        for shape in first_slide.shapes:
+            if shape.has_text_frame:
+                for paragraph in shape.text_frame.paragraphs:
+                    for run in paragraph.runs:
+                        if "Draft Template" in run.text:
+                            run.text = run.text.replace("Draft Template", new_text)
+                            run.font.color.rgb = RGBColor(0, 0, 0)  # Set text color to black
+        messagebox.showinfo("Success", f"'Draft Template' replaced with '{new_text}' on the first slide.")
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
 
-def process_shape(shape):
-    if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
-        for s in shape.shapes:
-            process_shape(s)  # Recursive call to handle nested groups
-    elif shape.has_text_frame:
-        text_frame = shape.text_frame
-        replace_text_in_text_frame(text_frame)
+# Apply the replacement for "Draft Template"
+def apply_draft_replacement():
+    prs = load_presentation()
+    if prs:
+        new_text = entry_draft.get().strip()
+        if new_text:
+            replace_draft_template(prs, new_text)
+            save_changes(prs)
+        else:
+            messagebox.showerror("Error", "Please enter the replacement text for 'Draft Template'.")
 
-    if shape.has_table:
-        table = shape.table
-        for row in table.rows:
-            for cell in row.cells:
-                text_frame = cell.text_frame
-                replace_text_in_text_frame(text_frame)
+# Function to apply SAW replacements
+def apply_saw_replacements(prs):
+    saw_replacements = [line.strip() for line in text_saw.get("1.0", "end").strip().split('\n') if line.strip()]
+    if len(saw_replacements) > 90:
+        messagebox.showerror("Error", "Too many replacement values provided.")
+        return
+    replacements = {f"SAW{str(i+1).zfill(2)}": saw_replacements[i] for i in range(len(saw_replacements))}
 
-def replace_text_in_text_frame(text_frame):
+    for slide in prs.slides:
+        for shape in slide.shapes:
+            if shape.has_text_frame:
+                replace_text_in_text_frame(shape.text_frame, replacements)
+            elif shape.shape_type == MSO_SHAPE_TYPE.GROUP:
+                for grouped_shape in shape.shapes:
+                    if grouped_shape.has_text_frame:
+                        replace_text_in_text_frame(grouped_shape.text_frame, replacements)
+
+# Function to replace text in a text frame
+def replace_text_in_text_frame(text_frame, replacements):
     if text_frame is not None:
         for paragraph in text_frame.paragraphs:
             full_text = ''.join([run.text for run in paragraph.runs])  # Combine all runs' text
             for old_text, new_text in replacements.items():
                 if old_text in full_text:
+                    # Replace the text in the combined string
                     full_text = full_text.replace(old_text, new_text)
+
+                    # Clear the paragraph runs and create a single run with the replaced text
                     for run in paragraph.runs:
                         run.text = ''  # Clear existing text
                     paragraph.runs[0].text = full_text  # Set the first run to the new text
 
-def set_text_color(run, rgb_color):
-    run.font.color.rgb = rgb_color
-
-def search_and_replace_value(prs, search_value, replacement_value):
-    for slide in prs.slides:
-        for shape in slide.shapes:
-            if shape.has_table:
-                table = shape.table
-                for row in table.rows:
-                    for cell in row.cells:
-                        if search_value in cell.text:
-                            text_frame = cell.text_frame
-                            for paragraph in text_frame.paragraphs:
-                                for run in paragraph.runs:
-                                    if search_value in run.text:
-                                        start = run.text.find(search_value)
-                                        end = start + len(search_value)
-                                        run.text = run.text[:start] + replacement_value + run.text[end:]
-
-                                        # Check if the replacement value is above 85% and set color to red
-                                        try:
-                                            if float(replacement_value.strip('%')) > 85:
-                                                set_text_color(run, RGBColor(255, 0, 0))  # Red color
-                                        except ValueError:
-                                            pass  # In case the replacement value is not a number
-                                        return  # Exit after the first match per slide
-
+# Function to apply combined replacements
 def apply_combined_replacements(prs):
-    try:
-        replacement_lines = entry_combined.get("1.0", tk.END).strip().splitlines()
+    combined_replacements = [line.strip().split() for line in text_combined.get("1.0", "end").strip().split('\n') if line.strip()]
+    if any(len(replacement) != 3 for replacement in combined_replacements):
+        messagebox.showerror("Error", "Each line must contain exactly 3 values.")
+        return
 
-        total_lines = len(replacement_lines)
-        for start in range(0, total_lines, CHUNK_SIZE):
-            chunk = replacement_lines[start:start + CHUNK_SIZE]
+    replacements_list = [
+        {"31.77%": values[0], "53.07%": values[1], "83.07%": values[2]}
+        for values in combined_replacements
+    ]
 
-            for line in chunk:
-                try:
-                    value_31, value_53, value_83 = line.split()
-                    search_and_replace_value(prs, "31.77%", value_31)
-                    search_and_replace_value(prs, "53.07%", value_53)
-                    search_and_replace_value(prs, "83.07%", value_83)
-                except ValueError:
-                    messagebox.showerror("Error", "Each line must contain exactly three values separated by spaces.")
-                    return
+    for i, slide in enumerate(prs.slides):
+        if i >= len(replacements_list):
+            break
+        replacements = replacements_list[i]
+        for shape in slide.shapes:
+            if shape.has_text_frame:
+                replace_text_in_text_frame(shape.text_frame, replacements)
+            elif shape.shape_type == MSO_SHAPE_TYPE.GROUP:
+                for grouped_shape in shape.shapes:
+                    if grouped_shape.has_text_frame:
+                        replace_text_in_text_frame(grouped_shape.text_frame, replacements)
 
-            # Update progress feedback
-            progress = min(start + CHUNK_SIZE, total_lines)
-            progress_label.config(text=f"Processing {progress}/{total_lines} lines...")
-            root.update_idletasks()
-
-            # Introduce a short delay to keep the UI responsive
-            time.sleep(DELAY)
-
-        messagebox.showinfo("Success", "Combined replacements applied.")
-    except Exception as e:
-        messagebox.showerror("Error", f"An error occurred: {e}")
-
-def save_changes(prs):
-    if prs:
-        save_path = filedialog.asksaveasfilename(
-            defaultextension=".pptx", filetypes=[("PowerPoint Files", "*.pptx")]
-        )
-        if save_path:
-            prs.save(save_path)
-            messagebox.showinfo("Success", f"Changes saved to {save_path}")
-    else:
-        messagebox.showerror("Error", "No presentation loaded.")
-
-def apply_all_replacements_thread():
+# Apply all replacements in a separate thread
+def apply_all_replacements():
     prs = load_presentation()
     if prs:
         apply_saw_replacements(prs)
         apply_combined_replacements(prs)
         save_changes(prs)
-    progress_label.config(text="Processing complete.")
+        messagebox.showinfo("Success", "All replacements have been applied and saved successfully.")
 
-def start_threaded_replacement():
-    threading.Thread(target=apply_all_replacements_thread).start()
-
-# Initialize the replacements dictionary
-replacements = {}
+def apply_all_replacements_threaded():
+    run_in_background(apply_all_replacements)
 
 # Set up the main window
 root = tk.Tk()
@@ -166,39 +135,34 @@ root.title("PowerPoint Text Replacer")
 notebook = ttk.Notebook(root)
 notebook.grid(row=0, column=0, padx=10, pady=10)
 
+# New tab for "Draft Template" replacement
+tab_draft = ttk.Frame(notebook)
+notebook.add(tab_draft, text="Replace 'Draft Template'")
+
+tk.Label(tab_draft, text="Replacement Text:").grid(row=0, column=0, padx=10, pady=5)
+entry_draft = tk.Entry(tab_draft, width=50)
+entry_draft.grid(row=0, column=1, padx=10, pady=5)
+
+tk.Button(tab_draft, text="Replace and Save", command=lambda: run_in_background(apply_draft_replacement)).grid(row=1, column=1, padx=10, pady=20)
+
 # First tab for SAW replacements
-tab1 = ttk.Frame(notebook)
-notebook.add(tab1, text="SAW Replacements")
+tab_saw = ttk.Frame(notebook)
+notebook.add(tab_saw, text="SAW Replacements")
 
-# File selection for SAW Replacements
-tk.Label(tab1, text="Select PowerPoint File:").grid(row=0, column=0, padx=10, pady=5)
-entry_file_path = tk.Entry(tab1, width=50)
-entry_file_path.grid(row=0, column=1, padx=10, pady=5)
-tk.Button(tab1, text="Browse", command=browse_file).grid(row=0, column=2, padx=10, pady=5)
-
-# Default replacement input for SAW Replacements
-tk.Button(tab1, text="Load SAW01 to SAW90", command=add_default_replacements).grid(row=1, column=1, padx=10, pady=5)
-
-# Replacement input area for SAW Replacements
-tk.Label(tab1, text="Replacement Pairs (one per line):").grid(row=2, column=0, padx=10, pady=5)
-entry_replacements = tk.Text(tab1, width=50, height=20)
-entry_replacements.grid(row=2, column=1, padx=10, pady=5)
+tk.Label(tab_saw, text="SAW Replacements (One per line):").grid(row=0, column=0, padx=10, pady=5)
+text_saw = tk.Text(tab_saw, height=10, width=50)
+text_saw.grid(row=1, column=0, padx=10, pady=5)
 
 # Second tab for Combined Replacements
 tab_combined = ttk.Frame(notebook)
 notebook.add(tab_combined, text="Combined Replacements")
 
-# Combined replacement input
-tk.Label(tab_combined, text="Replacement Values (three per line, separated by spaces):").grid(row=0, column=0, padx=10, pady=5)
-entry_combined = tk.Text(tab_combined, width=50, height=20)
-entry_combined.grid(row=0, column=1, padx=10, pady=5)
-
-# Progress label for feedback
-progress_label = tk.Label(root, text="")
-progress_label.grid(row=2, column=0, padx=10, pady=5)
+tk.Label(tab_combined, text="Combined Replacements (Three values per line):").grid(row=0, column=0, padx=10, pady=5)
+text_combined = tk.Text(tab_combined, height=10, width=50)
+text_combined.grid(row=1, column=0, padx=10, pady=5)
 
 # Apply replacements button for all replacements
-tk.Button(root, text="Apply All Replacements and Save", command=start_threaded_replacement).grid(row=3, column=0, padx=10, pady=20)
+tk.Button(root, text="Apply All Replacements and Save", command=apply_all_replacements_threaded).grid(row=3, column=0, padx=10, pady=20)
 
 # Start the Tkinter main loop
 root.mainloop()
