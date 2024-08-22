@@ -1,40 +1,22 @@
-from pptx import Presentation
-from pptx.util import Inches
-from pptx.dml.color import RGBColor
+import pandas as pd
+from openpyxl import load_workbook
 
-def create_table_with_borders(slide, left, top, width, height):
-    # Add a table with 7 columns and 10 rows
-    table = slide.shapes.add_table(rows=10, cols=7, left=left, top=top, width=width, height=height).table
+# Load the Excel file
+file_path = 'your_excel_file.xlsx'
+df = pd.read_excel(file_path)
+
+# Filter the DataFrame to only include rows where the Location is "Singapore"
+filtered_df = df[df['Location'] == 'Singapore']
+
+# Load the existing workbook
+book = load_workbook(file_path)
+
+# Create a new Excel writer object
+with pd.ExcelWriter(file_path, engine='openpyxl', mode='a') as writer:
+    # Load the workbook into the writer
+    writer.book = book
     
-    # Apply black borders to all cells
-    for row in table.rows:
-        for cell in row.cells:
-            # Set border width for all sides
-            cell.border_left.width = Inches(0.01)
-            cell.border_top.width = Inches(0.01)
-            cell.border_right.width = Inches(0.01)
-            cell.border_bottom.width = Inches(0.01)
+    # Write the filtered DataFrame to a new sheet named 'FilteredData'
+    filtered_df.to_excel(writer, sheet_name='FilteredData', index=False)
 
-            # Set border color to black
-            cell.border_left.color.rgb = RGBColor(0, 0, 0)
-            cell.border_top.color.rgb = RGBColor(0, 0, 0)
-            cell.border_right.color.rgb = RGBColor(0, 0, 0)
-            cell.border_bottom.color.rgb = RGBColor(0, 0, 0)
-
-    return table
-
-# Create a presentation and add a slide
-prs = Presentation()
-slide = prs.slides.add_slide(prs.slide_layouts[5])
-
-# Define the table position and size
-left = Inches(1)
-top = Inches(1.5)
-width = Inches(6)
-height = Inches(3)
-
-# Create the table with borders
-create_table_with_borders(slide, left, top, width, height)
-
-# Save the presentation
-prs.save("table_with_borders.pptx")
+print("Filtered data added to a new sheet 'FilteredData' in the existing Excel file.")
