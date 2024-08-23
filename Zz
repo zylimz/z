@@ -1,7 +1,7 @@
 import pandas as pd
 from openpyxl import load_workbook
 
-# Load the Excel file
+# Load the Excel file into a DataFrame
 file_path = 'your_excel_file.xlsx'
 df = pd.read_excel(file_path)
 
@@ -11,10 +11,11 @@ filtered_df = df[df['Location'] == 'Singapore']
 # Load the existing workbook
 book = load_workbook(file_path)
 
-# Create a new Excel writer object
+# Use ExcelWriter to write to the existing workbook
 with pd.ExcelWriter(file_path, engine='openpyxl', mode='a') as writer:
-    # Load the workbook into the writer
+    # Assign the workbook and the existing sheets to the writer
     writer.book = book
+    writer.sheets = {ws.title: ws for ws in book.worksheets}
     
     # Write the filtered DataFrame to a new sheet named 'FilteredData'
     filtered_df.to_excel(writer, sheet_name='FilteredData', index=False)
