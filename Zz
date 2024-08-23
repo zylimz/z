@@ -9,7 +9,7 @@ df = pd.read_excel(file_path)
 # Filter the DataFrame to only include rows where the 'location' is "Singapore"
 filtered_df = df[df['location'] == 'Singapore']
 
-# Load the original workbook and the first sheet to get column widths and styles
+# Load the original workbook and the first sheet to get column widths
 book = load_workbook(file_path)
 sheet = book.active
 
@@ -24,17 +24,8 @@ for col in sheet.columns:
     adjusted_width = max(max_length, 8) + 2
     new_sheet.column_dimensions[col[0].column_letter].width = adjusted_width
 
-# Copy the first row with styles
-for cell in sheet[1]:
-    new_cell = new_sheet[cell.coordinate]
-    new_cell.value = cell.value
-    new_cell.font = cell.font  # Copy font
-    new_cell.fill = cell.fill  # Copy fill (color)
-    new_cell.border = cell.border  # Copy border
-    new_cell.alignment = cell.alignment  # Copy alignment
-
-# Add filtered data starting from the second row
-for r_idx, row in enumerate(dataframe_to_rows(filtered_df, index=False, header=False), start=2):
+# Add filtered data to the new sheet starting from the first row
+for r_idx, row in enumerate(dataframe_to_rows(filtered_df, index=False, header=True), start=1):
     for c_idx, value in enumerate(row, start=1):
         new_sheet.cell(row=r_idx, column=c_idx, value=value)
 
@@ -42,4 +33,4 @@ for r_idx, row in enumerate(dataframe_to_rows(filtered_df, index=False, header=F
 output_file_path = 'filtered.xlsx'
 new_book.save(output_file_path)
 
-print(f"Filtered data with styles has been saved to '{output_file_path}'.")
+print(f"Filtered data with column widths has been saved to '{output_file_path}'.")
