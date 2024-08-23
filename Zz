@@ -1,19 +1,14 @@
 import pandas as pd
-from openpyxl import load_workbook
 
-# Load the Excel file into a DataFrame
+# Load the original Excel file into a DataFrame
 file_path = 'your_excel_file.xlsx'
 df = pd.read_excel(file_path)
 
 # Filter the DataFrame to only include rows where the Location is "Singapore"
 filtered_df = df[df['Location'] == 'Singapore']
 
-# Load the existing workbook
-book = load_workbook(file_path)
+# Save the filtered DataFrame to a new Excel file
+output_file_path = 'filtered_excel_file.xlsx'
+filtered_df.to_excel(output_file_path, index=False, sheet_name='FilteredData')
 
-# Use ExcelWriter with the existing workbook to append a new sheet
-with pd.ExcelWriter(file_path, engine='openpyxl', mode='a') as writer:
-    # Since we're in append mode, we don't need to manually assign the book
-    filtered_df.to_excel(writer, sheet_name='FilteredData', index=False)
-
-print("Filtered data added to a new sheet 'FilteredData' in the existing Excel file.")
+print(f"Filtered data has been saved to '{output_file_path}'.")
