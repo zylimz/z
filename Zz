@@ -1,25 +1,24 @@
 import pandas as pd
-from openpyxl import load_workbook
+from openpyxl import load_workbook, Workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
-from openpyxl.styles import PatternFill
 
 # Load the original Excel file into a DataFrame
-file_path = 'your_excel_file.xlsx'
+file_path = 'tested.xlsx'
 df = pd.read_excel(file_path)
 
-# Filter the DataFrame to only include rows where the Location is "Singapore"
-filtered_df = df[df['Location'] == 'Singapore']
+# Filter the DataFrame to only include rows where the 'location' is "Singapore"
+filtered_df = df[df['location'] == 'Singapore']
 
 # Load the original workbook and the first sheet to get column widths and styles
 book = load_workbook(file_path)
 sheet = book.active
 
-# Create a new workbook for the filtered data
-new_book = load_workbook(file_path)
+# Create a new workbook and add a new sheet
+new_book = Workbook()
 new_sheet = new_book.active
 new_sheet.title = 'FilteredData'
 
-# Retain column widths
+# Retain column widths from the original sheet
 for col in sheet.columns:
     max_length = max(len(str(cell.value)) if cell.value else 0 for cell in col)
     adjusted_width = max(max_length, 8) + 2
@@ -29,10 +28,10 @@ for col in sheet.columns:
 for cell in sheet[1]:
     new_cell = new_sheet[cell.coordinate]
     new_cell.value = cell.value
-    new_cell.fill = cell.fill  # Retain the color
-    new_cell.font = cell.font  # Retain the font
-    new_cell.border = cell.border  # Retain the border
-    new_cell.alignment = cell.alignment  # Retain the alignment
+    new_cell.font = cell.font  # Copy font
+    new_cell.fill = cell.fill  # Copy fill (color)
+    new_cell.border = cell.border  # Copy border
+    new_cell.alignment = cell.alignment  # Copy alignment
 
 # Add filtered data starting from the second row
 for r_idx, row in enumerate(dataframe_to_rows(filtered_df, index=False, header=False), start=2):
@@ -40,7 +39,7 @@ for r_idx, row in enumerate(dataframe_to_rows(filtered_df, index=False, header=F
         new_sheet.cell(row=r_idx, column=c_idx, value=value)
 
 # Save the new workbook with filtered data
-output_file_path = 'filtered_excel_file_with_styles.xlsx'
+output_file_path = 'filtered.xlsx'
 new_book.save(output_file_path)
 
 print(f"Filtered data with styles has been saved to '{output_file_path}'.")
