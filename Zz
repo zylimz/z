@@ -11,12 +11,9 @@ filtered_df = df[df['Location'] == 'Singapore']
 # Load the existing workbook
 book = load_workbook(file_path)
 
-# Use ExcelWriter to write to the existing workbook without overwriting it
-with pd.ExcelWriter(file_path, engine='openpyxl', mode='a', if_sheet_exists='new') as writer:
-    writer.book = book  # Use the loaded workbook
-    writer.sheets = {ws.title: ws for ws in book.worksheets}  # Load existing sheets into the writer
-    
-    # Write the filtered DataFrame to a new sheet named 'FilteredData'
+# Use ExcelWriter with the existing workbook to append a new sheet
+with pd.ExcelWriter(file_path, engine='openpyxl', mode='a') as writer:
+    # Since we're in append mode, we don't need to manually assign the book
     filtered_df.to_excel(writer, sheet_name='FilteredData', index=False)
 
 print("Filtered data added to a new sheet 'FilteredData' in the existing Excel file.")
