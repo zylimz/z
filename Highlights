@@ -3,33 +3,40 @@ from openpyxl.styles import PatternFill
 import tkinter as tk
 from tkinter import filedialog, messagebox
 
-# Function to find the highest number for each "Caption" and highlight it
+# Function to find the highest number for each "Caption" and highlight it based on column names
 def highlight_highest_number(file_path):
     try:
         # Load the Excel file
         wb = openpyxl.load_workbook(file_path)
         sheet = wb.active
 
-        # Define the columns (update these if your columns are in different positions)
-        caption_col = 'A'  # "Caption" column
-        memory_col = 'B'   # "MaxMemoryUsedIn (%)" column
+        # Get the header row (assuming first row contains headers)
+        header_row = {cell.value: idx + 1 for idx, cell in enumerate(sheet[1])}
+
+        # Find the column indices for "Caption" and "MaxMemoryUsedIn (%)"
+        caption_col = header_row.get("Caption")
+        memory_col = header_row.get("MaxMemoryUsedIn (%)")
+
+        if caption_col is None or memory_col is None:
+            raise ValueError("Required columns 'Caption' or 'MaxMemoryUsedIn (%)' not found in the file.")
+
         highlight_fill = PatternFill(start_color="FFCCCC", end_color="FFCCCC", fill_type="solid")
 
         # Dictionary to store the highest "MaxMemoryUsedIn (%)" for each "Caption"
         caption_memory = {}
 
         # Iterate through the rows to collect "Caption" and "MaxMemoryUsedIn (%)" data
-        for row in sheet.iter_rows(min_row=2, max_row=sheet.max_row, min_col=1, max_col=2):
-            caption = row[0].value  # "Caption" column
-            memory_used = row[1].value  # "MaxMemoryUsedIn (%)" column
-            
+        for row in sheet.iter_rows(min_row=2, max_row=sheet.max_row):
+            caption = row[caption_col - 1].value  # "Caption" column
+            memory_used = row[memory_col - 1].value  # "MaxMemoryUsedIn (%)" column
+
             if caption is not None and isinstance(memory_used, (int, float)):
                 if caption not in caption_memory or memory_used > caption_memory[caption]['value']:
-                    caption_memory[caption] = {'value': memory_used, 'row': row[1].row}
+                    caption_memory[caption] = {'value': memory_used, 'row': row[memory_col - 1].row}
 
         # Highlight the highest "MaxMemoryUsedIn (%)" for each unique "Caption"
         for data in caption_memory.values():
-            cell = sheet.cell(row=data['row'], column=2)  # Get the cell of the highest value
+            cell = sheet.cell(row=data['row'], column=memory_col)  # Get the cell of the highest value
             cell.fill = highlight_fill  # Apply the light red fill
 
         # Save the modified Excel file
