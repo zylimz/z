@@ -1,10 +1,11 @@
 import openpyxl
 from openpyxl.styles import PatternFill
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import ttk, filedialog, messagebox
+import threading
 
 # Function to find the highest number for each "Caption" and highlight it based on column names
-def highlight_highest_number(file_path):
+def highlight_highest_number(file_path, progress_var, progress_bar, complete_callback):
     try:
         # Load the Excel file
         wb = openpyxl.load_workbook(file_path)
@@ -25,6 +26,9 @@ def highlight_highest_number(file_path):
         # Dictionary to store the highest "MaxMemoryUsedIn (%)" for each "Caption"
         caption_memory = {}
 
+        total_rows = sheet.max_row - 1  # Exclude header row
+        processed_rows = 0
+
         # Iterate through the rows to collect "Caption" and "MaxMemoryUsedIn (%)" data
         for row in sheet.iter_rows(min_row=2, max_row=sheet.max_row):
             caption = row[caption_col - 1].value  # "Caption" column
@@ -33,6 +37,12 @@ def highlight_highest_number(file_path):
             if caption is not None and isinstance(memory_used, (int, float)):
                 if caption not in caption_memory or memory_used > caption_memory[caption]['value']:
                     caption_memory[caption] = {'value': memory_used, 'row': row[memory_col - 1].row}
+
+            # Update progress bar
+            processed_rows += 1
+            progress = (processed_rows / total_rows) * 100
+            progress_var.set(progress)
+            progress_bar.update()
 
         # Highlight the highest "MaxMemoryUsedIn (%)" for each unique "Caption"
         for data in caption_memory.values():
@@ -43,27 +53,45 @@ def highlight_highest_number(file_path):
         new_file_path = file_path.replace(".xlsx", "_highlighted.xlsx")
         wb.save(new_file_path)
 
-        messagebox.showinfo("Success", f"The file has been processed and saved as {new_file_path}.")
+        # Call the completion callback to show success message
+        complete_callback(new_file_path)
     
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
 
-# Function to open the file dialog and process the selected Excel file
-def open_file_dialog():
+# Function to handle the completion of the Excel processing
+def on_processing_complete(new_file_path):
+    messagebox.showinfo("Success", f"The file has been processed and saved as {new_file_path}.")
+
+# Function to start the processing in a separate thread
+def start_processing(file_path, progress_var, progress_bar):
+    processing_thread = threading.Thread(target=highlight_highest_number, args=(file_path, progress_var, progress_bar, on_processing_complete))
+    processing_thread.start()
+
+# Function to open the file dialog and start processing
+def open_file_dialog(progress_var, progress_bar):
     file_path = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx")])
     if file_path:
-        highlight_highest_number(file_path)
+        # Reset progress bar and start processing
+        progress_var.set(0)
+        start_processing(file_path, progress_var, progress_bar)
 
-# Create a simple GUI window
+# Create the GUI window
 root = tk.Tk()
 root.title("Highlight Highest Value in Excel")
-root.geometry("400x200")
+root.geometry("400x250")
 
 # Label and button for file selection
 label = tk.Label(root, text="Select an Excel file to highlight the highest values:")
-label.pack(pady=20)
+label.pack(pady=10)
 
-button = tk.Button(root, text="Select File", command=open_file_dialog)
+# Progress Bar
+progress_var = tk.DoubleVar()
+progress_bar = ttk.Progressbar(root, variable=progress_var, maximum=100)
+progress_bar.pack(pady=10, padx=20, fill=tk.X)
+
+# Button to open file dialog and start processing
+button = tk.Button(root, text="Select File", command=lambda: open_file_dialog(progress_var, progress_bar))
 button.pack(pady=20)
 
 # Run the GUI
