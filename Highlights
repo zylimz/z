@@ -2,7 +2,18 @@ import openpyxl
 from openpyxl.styles import PatternFill
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
-from datetime import datetime
+from datetime import datetime, timedelta
+
+# Convert Excel serial date number to a Python datetime object
+def excel_date_to_datetime(excel_date):
+    if isinstance(excel_date, (int, float)):
+        # Excel's date system starts from 1900-01-01
+        # Excel counts dates from 1900-01-01, adjust for date 1900-01-01
+        start_date = datetime(1899, 12, 30)
+        return start_date + timedelta(days=excel_date)
+    elif isinstance(excel_date, datetime):
+        return excel_date
+    return None
 
 # Function to find the highest number for each "Caption" per month and highlight it
 def highlight_highest_number(file_path, progress_var, progress_bar, complete_callback):
@@ -36,10 +47,11 @@ def highlight_highest_number(file_path, progress_var, progress_bar, complete_cal
             memory_used = row[memory_col - 1].value  # "MaxMemoryUsedIn (%)" column
             date_value = row[date_col - 1].value  # "DateTime" column
 
-            if caption is not None and isinstance(memory_used, (int, float)) and isinstance(date_value, str):
-                try:
-                    # Parse the date and extract the month and year
-                    date_obj = datetime.strptime(date_value, "%m/%d/%Y")
+            if caption is not None and isinstance(memory_used, (int, float)):
+                # Convert date_value to datetime if it's in Excel serial date format
+                date_obj = excel_date_to_datetime(date_value)
+
+                if date_obj:
                     month_year = (date_obj.month, date_obj.year)  # Tuple of (month, year)
 
                     # Create a key for the caption and month/year
@@ -48,7 +60,7 @@ def highlight_highest_number(file_path, progress_var, progress_bar, complete_cal
                     # Track the highest value per caption per month/year
                     if key not in caption_memory or memory_used > caption_memory[key]['value']:
                         caption_memory[key] = {'value': memory_used, 'row': row[memory_col - 1].row}
-                except ValueError:
+                else:
                     # Skip if the date cannot be parsed
                     continue
 
