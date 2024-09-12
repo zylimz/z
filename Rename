@@ -1,0 +1,43 @@
+import os
+import tkinter as tk
+from tkinter import filedialog, messagebox
+
+def rename_files_in_folder(folder_path):
+    # Loop through all files in the given folder
+    renamed_count = 0
+    for filename in os.listdir(folder_path):
+        if "X1-" in filename:
+            # Create the new filename by replacing "X1-" with "08 "
+            new_filename = filename.replace("X1-", "08 ")
+            old_file_path = os.path.join(folder_path, filename)
+            new_file_path = os.path.join(folder_path, new_filename)
+
+            # Rename the file
+            os.rename(old_file_path, new_file_path)
+            renamed_count += 1
+    return renamed_count
+
+def select_folder_and_rename():
+    # Open a dialog to select the folder
+    folder_path = filedialog.askdirectory()
+    
+    if folder_path:
+        # Rename files and display result
+        renamed_count = rename_files_in_folder(folder_path)
+        messagebox.showinfo("Renaming Complete", f"{renamed_count} files renamed in the folder.")
+    else:
+        messagebox.showwarning("No Folder Selected", "Please select a folder to rename files.")
+
+# Create the main application window
+root = tk.Tk()
+root.title("File Renamer")
+
+# Create a label and a button in the window
+label = tk.Label(root, text="Select a folder to rename files (Replace 'X1-' with '08 ')")
+label.pack(pady=20)
+
+rename_button = tk.Button(root, text="Select Folder and Rename", command=select_folder_and_rename)
+rename_button.pack(pady=10)
+
+# Run the Tkinter main loop
+root.mainloop()
