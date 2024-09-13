@@ -51,11 +51,14 @@ class PowerPointProcessorApp:
             report_data = df_report_cycle[df_report_cycle['Report Name'] == report_name]
             saw_values = report_data['Hostname'].astype(str).tolist()  # Ensure values are strings
             format_data = df_format_box[df_format_box['Report Name'] == report_name].iloc[0]
+            combined_replacements = [
+                [str(format_data['CPU Utilization']),
+                 str(format_data['Memory Utilization']),
+                 str(format_data['Disk Utilization'])]
+            ]
             data_by_report[report_name] = {
                 'saw_values': saw_values,
-                'cpu_utilization': str(format_data['CPU Utilization']),
-                'memory_utilization': str(format_data['Memory Utilization']),
-                'disk_utilization': str(format_data['Disk Utilization'])
+                'combined_replacements': combined_replacements
             }
         return data_by_report
 
@@ -99,6 +102,7 @@ class PowerPointProcessorApp:
             for slide in prs.slides:
                 for shape in slide.shapes:
                     if shape.has_table:
+                        # Only process the first match
                         self.search_and_replace_value(shape, '31.77%', cpu_utilization)
                         self.search_and_replace_value(shape, '53.07%', memory_utilization)
                         self.search_and_replace_value(shape, '83.07%', disk_utilization)
@@ -143,9 +147,9 @@ class PowerPointProcessorApp:
                 prs = Presentation(ppt_template)
                 self.apply_saw_replacements(prs, data['saw_values'])
                 
-                # Extract combined replacement values and convert to list of tuples
+                # Extract combined replacement values as a list of lists
                 combined_values = [
-                    (str(row['CPU Utilization']), str(row['Memory Utilization']), str(row['Disk Utilization']))
+                    [str(row['CPU Utilization']), str(row['Memory Utilization']), str(row['Disk Utilization'])]
                     for _, row in df_format_box[df_format_box['Report Name'] == report_name].iterrows()
                 ]
                 
@@ -163,4 +167,4 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = PowerPointProcessorApp(root)
     root.mainloop()
-            
+    
