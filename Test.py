@@ -1,10 +1,9 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox
-from tkinter import ttk
-import pandas as pd
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.dml.color import RGBColor
+import pandas as pd
 
 class PowerPointProcessorApp:
     def __init__(self, root):
@@ -92,38 +91,38 @@ class PowerPointProcessorApp:
                             run.text = ''
                         paragraph.runs[0].text = full_text
 
-    def apply_combined_replacements(self, prs, values_list):
+    def apply_combined_replacements(self, prs, cpu_utilization, memory_utilization, disk_utilization):
+        # Use the provided combined search and replace function to apply replacements
+        search_and_replace_value(prs, '31.77%', cpu_utilization)
+        search_and_replace_value(prs, '53.07%', memory_utilization)
+        search_and_replace_value(prs, '83.07%', disk_utilization)
+
+    def search_and_replace_value(self, prs, search_value, replacement_value):
         for slide in prs.slides:
-            if values_list:
-                cpu_utilization, memory_utilization, disk_utilization = values_list[0]
-                cpu_utilization = str(cpu_utilization)
-                memory_utilization = str(memory_utilization)
-                disk_utilization = str(disk_utilization)
-                self.replace_values_on_slide(slide, cpu_utilization, memory_utilization, disk_utilization)
-                # Remove the first set of values after processing
-                values_list.pop(0)
+            for shape in slide.shapes:
+                if shape.has_table:
+                    table = shape.table
+                    for row in table.rows:
+                        for cell in row.cells:
+                            if search_value in cell.text:
+                                text_frame = cell.text_frame
+                                for paragraph in text_frame.paragraphs:
+                                    for run in paragraph.runs:
+                                        if search_value in run.text:
+                                            start = run.text.find(search_value)
+                                            end = start + len(search_value)
+                                            run.text = run.text[:start] + replacement_value + run.text[end:]
 
-    def replace_values_on_slide(self, slide, cpu_utilization, memory_utilization, disk_utilization):
-        for shape in slide.shapes:
-            if shape.has_table:
-                table = shape.table
-                for row in table.rows:
-                    for cell in row.cells:
-                        cell_text = cell.text
-                        if '31.77%' in cell_text:
-                            self.replace_value_in_cell(cell, cpu_utilization)
-                        elif '53.07%' in cell_text:
-                            self.replace_value_in_cell(cell, memory_utilization)
-                        elif '83.07%' in cell_text:
-                            self.replace_value_in_cell(cell, disk_utilization)
+                                            # Check if the replacement value is above 85% and set color to red
+                                            try:
+                                                if float(replacement_value.strip('%')) > 85:
+                                                    self.set_text_color(run, RGBColor(255, 0, 0))  # Red color
+                                            except ValueError:
+                                                pass  # In case the replacement value is not a number
+                                            return  # Exit after the first match per slide
 
-    def replace_value_in_cell(self, cell, new_value):
-        text_frame = cell.text_frame
-        for paragraph in text_frame.paragraphs:
-            for run in paragraph.runs:
-                if '31.77%' in run.text or '53.07%' in run.text or '83.07%' in run.text:
-                    run.text = run.text.replace('31.77%', new_value)
-                    run.font.color.rgb = RGBColor(255, 0, 0)  # Red color if percentage is high
+    def set_text_color(self, run, color):
+        run.font.color.rgb = color
 
     def process_reports(self):
         try:
@@ -139,14 +138,13 @@ class PowerPointProcessorApp:
                 prs = Presentation(ppt_template)
                 self.apply_saw_replacements(prs, data['saw_values'])
                 
-                # Prepare the values list as text
-                values_list = []
-                for line in data['cpu_utilization'].splitlines():
-                    values = line.split()
-                    if len(values) == 3:
-                        values_list.append(values)
-                
-                self.apply_combined_replacements(prs, values_list)
+                # Apply combined replacements
+                self.apply_combined_replacements(
+                    prs, 
+                    data['cpu_utilization'], 
+                    data['memory_utilization'], 
+                    data['disk_utilization']
+                )
                 
                 save_path = f'{report_name}_updated.pptx'
                 prs.save(save_path)
@@ -160,4 +158,4 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = PowerPointProcessorApp(root)
     root.mainloop()
-    
+                
