@@ -102,25 +102,26 @@ class PowerPointProcessorApp:
             for table in tables:
                 if not combined_replacements:
                     break
-                # Use the first set of replacement values for this table
                 values = combined_replacements.pop(0)
                 self.replace_values_in_table(table, values)
 
     def replace_values_in_table(self, table, values):
+        value_iterator = iter(values)
         for row in table.rows:
             for cell in row.cells:
                 text_frame = cell.text_frame
                 if text_frame is not None:
                     for paragraph in text_frame.paragraphs:
                         for run in paragraph.runs:
-                            if run.text.strip() in ['31.77%', '53.07%', '83.07%']:  # Assuming these are your placeholders
-                                run.text = values[0]
-                                values.pop(0)
+                            original_text = run.text.strip()
+                            if original_text in ['31.77%', '53.07%', '83.07%']:  # Assuming these are your placeholders
                                 try:
-                                    if float(run.text.strip('%')) > 85:
+                                    new_value = next(value_iterator)
+                                    run.text = new_value
+                                    if float(new_value.strip('%')) > 85:
                                         self.set_text_color(run, RGBColor(255, 0, 0))  # Red color
-                                except ValueError:
-                                    pass  # In case the replacement value is not a number
+                                except StopIteration:
+                                    return  # Exit if there are no more values to replace
 
     def set_text_color(self, run, color):
         run.font.color.rgb = color
@@ -138,12 +139,8 @@ class PowerPointProcessorApp:
             for report_name, data in data_by_report.items():
                 prs = Presentation(ppt_template)
                 self.apply_saw_replacements(prs, data['saw_values'])
-                
-                # Extract combined replacement values as a list of lists
                 combined_values = data['combined_replacements']
-                
                 self.apply_combined_replacements(prs, combined_values)
-                
                 save_path = f'{report_name}_updated.pptx'
                 prs.save(save_path)
                 print(f'Saved {save_path}')
