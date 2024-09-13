@@ -60,7 +60,7 @@ class PowerPointProcessorApp:
         return data_by_report
 
     def apply_saw_replacements(self, prs, saw_values):
-        replacements = {f"SAW{i+1:02}": value for i, value in enumerate(saw_values)}
+        replacements = {f"SAW{i+1:02}": str(value) for i, value in enumerate(saw_values)}
         for slide in prs.slides:
             for shape in slide.shapes:
                 self.process_shape(shape, replacements)
@@ -93,6 +93,9 @@ class PowerPointProcessorApp:
 
     def apply_combined_replacements(self, prs, values_list):
         for i, (cpu_utilization, memory_utilization, disk_utilization) in enumerate(values_list):
+            cpu_utilization = str(cpu_utilization)
+            memory_utilization = str(memory_utilization)
+            disk_utilization = str(disk_utilization)
             for slide in prs.slides:
                 for shape in slide.shapes:
                     if shape.has_table:
@@ -142,7 +145,7 @@ class PowerPointProcessorApp:
                 
                 # Extract combined replacement values and convert to list of tuples
                 combined_values = [
-                    (row['CPU Utilization'], row['Memory Utilization'], row['Disk Utilization'])
+                    (str(row['CPU Utilization']), str(row['Memory Utilization']), str(row['Disk Utilization']))
                     for _, row in df_format_box[df_format_box['Report Name'] == report_name].iterrows()
                 ]
                 
@@ -160,4 +163,4 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = PowerPointProcessorApp(root)
     root.mainloop()
-    
+            
