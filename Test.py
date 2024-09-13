@@ -50,20 +50,12 @@ class PowerPointProcessorApp:
         for report_name in report_names:
             report_data = df_report_cycle[df_report_cycle['Report Name'] == report_name]
             saw_values = report_data['Hostname'].astype(str).tolist()  # Ensure values are strings
-            format_data = df_format_box[df_format_box['Report Name'] == report_name]
-            
-            # Extract percentage values and ensure they are formatted to two decimal places
-            percentage_values = [
-                f"{float(value):.2f}%" 
-                for value in format_data[['CPU Utilization', 'Memory Utilization', 'Disk Utilization']].values.flatten()
-            ]
-            
-            # Ensure there are sets of 3 percentage values for each row
-            formatted_percentage_sets = [percentage_values[i:i+3] for i in range(0, len(percentage_values), 3)]
-
+            format_data = df_format_box[df_format_box['Report Name'] == report_name].iloc[0]
             data_by_report[report_name] = {
                 'saw_values': saw_values,
-                'formatted_percentage_sets': formatted_percentage_sets
+                'cpu_utilization': f"{float(format_data['CPU Utilization']):.2f}%",  # Format to 2 decimal places
+                'memory_utilization': f"{float(format_data['Memory Utilization']):.2f}%",  # Format to 2 decimal places
+                'disk_utilization': f"{float(format_data['Disk Utilization']):.2f}%"  # Format to 2 decimal places
             }
         return data_by_report
 
@@ -99,35 +91,35 @@ class PowerPointProcessorApp:
                             run.text = ''
                         paragraph.runs[0].text = full_text
 
-    def apply_combined_replacements(self, prs, percentage_sets):
-        # Iterate through slides and replace values with subsequent percentage sets
-        for slide, percentage_set in zip(prs.slides, percentage_sets):
-            self.search_and_replace_value(slide, '31.77%', percentage_set[0])
-            self.search_and_replace_value(slide, '53.07%', percentage_set[1])
-            self.search_and_replace_value(slide, '83.07%', percentage_set[2])
+    def apply_combined_replacements(self, prs, cpu_utilization, memory_utilization, disk_utilization):
+        # Use the provided combined search and replace function to apply replacements
+        self.search_and_replace_value(prs, '31.77%', cpu_utilization)
+        self.search_and_replace_value(prs, '53.07%', memory_utilization)
+        self.search_and_replace_value(prs, '83.07%', disk_utilization)
 
-    def search_and_replace_value(self, slide, search_value, replacement_value):
-        for shape in slide.shapes:
-            if shape.has_table:
-                table = shape.table
-                for row in table.rows:
-                    for cell in row.cells:
-                        if search_value in cell.text:
-                            text_frame = cell.text_frame
-                            for paragraph in text_frame.paragraphs:
-                                for run in paragraph.runs:
-                                    if search_value in run.text:
-                                        start = run.text.find(search_value)
-                                        end = start + len(search_value)
-                                        run.text = run.text[:start] + replacement_value + run.text[end:]
+    def search_and_replace_value(self, prs, search_value, replacement_value):
+        for slide in prs.slides:
+            for shape in slide.shapes:
+                if shape.has_table:
+                    table = shape.table
+                    for row in table.rows:
+                        for cell in row.cells:
+                            if search_value in cell.text:
+                                text_frame = cell.text_frame
+                                for paragraph in text_frame.paragraphs:
+                                    for run in paragraph.runs:
+                                        if search_value in run.text:
+                                            start = run.text.find(search_value)
+                                            end = start + len(search_value)
+                                            run.text = run.text[:start] + replacement_value + run.text[end:]
 
-                                        # Check if the replacement value is above 85% and set color to red
-                                        try:
-                                            if float(replacement_value.strip('%')) > 85:
-                                                self.set_text_color(run, RGBColor(255, 0, 0))  # Red color
-                                        except ValueError:
-                                            pass  # In case the replacement value is not a number
-                                        return  # Exit after the first match per slide
+                                            # Check if the replacement value is above 85% and set color to red
+                                            try:
+                                                if float(replacement_value.strip('%')) > 85:
+                                                    self.set_text_color(run, RGBColor(255, 0, 0))  # Red color
+                                            except ValueError:
+                                                pass  # In case the replacement value is not a number
+                                            return  # Exit after the first match per slide
 
     def set_text_color(self, run, color):
         run.font.color.rgb = color
@@ -146,8 +138,13 @@ class PowerPointProcessorApp:
                 prs = Presentation(ppt_template)
                 self.apply_saw_replacements(prs, data['saw_values'])
                 
-                # Apply combined replacements sequentially for each slide with the correct percentage sets
-                self.apply_combined_replacements(prs, data['formatted_percentage_sets'])
+                # Apply combined replacements
+                self.apply_combined_replacements(
+                    prs, 
+                    data['cpu_utilization'], 
+                    data['memory_utilization'], 
+                    data['disk_utilization']
+                )
                 
                 save_path = f'{report_name}_updated.pptx'
                 prs.save(save_path)
@@ -161,4 +158,3 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = PowerPointProcessorApp(root)
     root.mainloop()
-    
