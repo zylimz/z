@@ -5,6 +5,7 @@ import pandas as pd
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.dml.color import RGBColor
+import numpy as np
 
 class PowerPointProcessorApp:
     def __init__(self, root):
@@ -50,7 +51,7 @@ class PowerPointProcessorApp:
         data_by_report = {}
         for report_name in report_names:
             report_data = df_report_cycle[df_report_cycle['Report Name'] == report_name]
-            saw_values = report_data['Hostname'].tolist()
+            saw_values = report_data['Hostname'].astype(str).tolist()
             format_data = df_format_box[df_format_box['Report Name'] == report_name].iloc[0]
             data_by_report[report_name] = {
                 'saw_values': saw_values,
@@ -133,10 +134,12 @@ class PowerPointProcessorApp:
                 
                 # Prepare the values list
                 values_list = []
-                for line in data['cpu_utilization']:
-                    values = line.split()
-                    if len(values) == 3:
-                        values_list.append(values)
+                cpu_utilizations = data['cpu_utilization']
+                memory_utilizations = data['memory_utilization']
+                disk_utilizations = data['disk_utilization']
+
+                for cpu, mem, disk in zip(cpu_utilizations, memory_utilizations, disk_utilizations):
+                    values_list.append([str(cpu), str(mem), str(disk)])
                 
                 self.apply_combined_replacements(prs, values_list)
                 
