@@ -1,6 +1,7 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox
 from pptx import Presentation
+from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.dml.color import RGBColor
 import pandas as pd
 
@@ -8,81 +9,92 @@ class PowerPointProcessorApp:
     def __init__(self, root):
         self.root = root
         self.root.title("PowerPoint Report Processor")
-
-        # Set up the notebook (tabs)
-        self.notebook = ttk.Notebook(root)
-        self.notebook.grid(row=0, column=0, padx=10, pady=10)
-
-        # First tab for selecting files and processing
-        self.tab1 = ttk.Frame(self.notebook)
-        self.notebook.add(self.tab1, text="Process Reports")
-
-        tk.Label(self.tab1, text="Select Excel File:").grid(row=0, column=0, padx=10, pady=5)
-        self.entry_excel_path = tk.Entry(self.tab1, width=50)
+        
+        # File selection for Excel and PowerPoint
+        tk.Label(root, text="Select Excel File:").grid(row=0, column=0, padx=10, pady=5)
+        self.entry_excel_path = tk.Entry(root, width=50)
         self.entry_excel_path.grid(row=0, column=1, padx=10, pady=5)
-        tk.Button(self.tab1, text="Browse", command=self.browse_excel_file).grid(row=0, column=2, padx=10, pady=5)
+        tk.Button(root, text="Browse", command=self.browse_excel_file).grid(row=0, column=2, padx=10, pady=5)
 
-        tk.Label(self.tab1, text="Select PowerPoint Template File:").grid(row=1, column=0, padx=10, pady=5)
-        self.entry_ppt_path = tk.Entry(self.tab1, width=50)
+        tk.Label(root, text="Select PowerPoint Template:").grid(row=1, column=0, padx=10, pady=5)
+        self.entry_ppt_path = tk.Entry(root, width=50)
         self.entry_ppt_path.grid(row=1, column=1, padx=10, pady=5)
-        tk.Button(self.tab1, text="Browse", command=self.browse_ppt_file).grid(row=1, column=2, padx=10, pady=5)
+        tk.Button(root, text="Browse", command=self.browse_ppt_file).grid(row=1, column=2, padx=10, pady=5)
+        
+        # Progress label
+        self.progress_label = tk.Label(root, text="")
+        self.progress_label.grid(row=3, column=0, columnspan=3, padx=10, pady=5)
 
-        tk.Button(self.tab1, text="Process Reports", command=self.process_reports).grid(row=2, column=1, padx=10, pady=20)
+        # Process button
+        tk.Button(root, text="Process Reports", command=self.process_reports).grid(row=4, column=0, columnspan=3, padx=10, pady=20)
 
     def browse_excel_file(self):
-        filepath = filedialog.askopenfilename(
-            filetypes=[("Excel Files", "*.xlsx")]
-        )
+        filepath = filedialog.askopenfilename(filetypes=[("Excel Files", "*.xlsx")])
         self.entry_excel_path.delete(0, tk.END)
         self.entry_excel_path.insert(0, filepath)
 
     def browse_ppt_file(self):
-        filepath = filedialog.askopenfilename(
-            filetypes=[("PowerPoint Files", "*.pptx")]
-        )
+        filepath = filedialog.askopenfilename(filetypes=[("PowerPoint Files", "*.pptx")])
         self.entry_ppt_path.delete(0, tk.END)
         self.entry_ppt_path.insert(0, filepath)
 
     def load_data(self):
-        excel_path = self.entry_excel_path.get()
-        if not excel_path:
-            messagebox.showerror("Error", "Please select an Excel file.")
-            return None, None
-        
-        df_report_cycle = pd.read_excel(excel_path, sheet_name='Servers Part of Report Cycle')
-        df_format_box = pd.read_excel(excel_path, sheet_name='Format Box')
-        
+        excel_file = self.entry_excel_path.get()
+        df_report_cycle = pd.read_excel(excel_file, sheet_name='Servers Part of Report Cycle')
+        df_format_box = pd.read_excel(excel_file, sheet_name='Format Box')
         return df_report_cycle, df_format_box
 
     def extract_data(self, df_report_cycle, df_format_box):
+        report_names = df_report_cycle['Report Name'].unique()
         data_by_report = {}
-
-        # Extract percentage values from the "Format Box" sheet
-        combined_replacements = []
-        for _, row in df_format_box.iterrows():
-            cpu_values = row['CPU Utilization']
-            mem_values = row['Memory Utilization']
-            disk_values = row['Disk Utilization']
-
-            # Convert values to percentages and format them
-            formatted_cpu = f"{float(cpu_values) * 100:.2f}%"
-            formatted_mem = f"{float(mem_values) * 100:.2f}%"
-            formatted_disk = f"{float(disk_values) * 100:.2f}%"
-            
-            combined_replacements.append([formatted_cpu, formatted_mem, formatted_disk])
-        
-        # Extract values from the "Servers Part of Report Cycle" sheet
-        for _, row in df_report_cycle.iterrows():
-            report_name = row['Report Name']
-            hostname = row['Hostname']
-            
-            if report_name not in data_by_report:
-                data_by_report[report_name] = {'saw_values': [], 'combined_replacements': []}
-            
-            data_by_report[report_name]['saw_values'].append(hostname)
-            data_by_report[report_name]['combined_replacements'] = combined_replacements
-        
+        for report_name in report_names:
+            report_data = df_report_cycle[df_report_cycle['Report Name'] == report_name]
+            saw_values = report_data['Hostname'].astype(str).tolist()  # Ensure values are strings
+            format_data = df_format_box[df_format_box['Report Name'] == report_name]
+            combined_replacements = [
+                [
+                    str(row['CPU Utilization']),
+                    str(row['Memory Utilization']),
+                    str(row['Disk Utilization'])
+                ]
+                for _, row in format_data.iterrows()
+            ]
+            data_by_report[report_name] = {
+                'saw_values': saw_values,
+                'combined_replacements': combined_replacements
+            }
         return data_by_report
+
+    def apply_saw_replacements(self, prs, saw_values):
+        replacements = {f"SAW{i+1:02}": str(value) for i, value in enumerate(saw_values)}
+        for slide in prs.slides:
+            for shape in slide.shapes:
+                self.process_shape(shape, replacements)
+
+    def process_shape(self, shape, replacements):
+        if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
+            for s in shape.shapes:
+                self.process_shape(s, replacements)
+        elif shape.has_text_frame:
+            text_frame = shape.text_frame
+            self.replace_text_in_text_frame(text_frame, replacements)
+        elif shape.has_table:
+            table = shape.table
+            for row in table.rows:
+                for cell in row.cells:
+                    text_frame = cell.text_frame
+                    self.replace_text_in_text_frame(text_frame, replacements)
+
+    def replace_text_in_text_frame(self, text_frame, replacements):
+        if text_frame is not None:
+            for paragraph in text_frame.paragraphs:
+                full_text = ''.join([run.text for run in paragraph.runs])
+                for old_text, new_text in replacements.items():
+                    if old_text in full_text:
+                        full_text = full_text.replace(old_text, new_text, 1)  # Replace only the first occurrence
+                        for run in paragraph.runs:
+                            run.text = ''
+                        paragraph.runs[0].text = full_text
 
     def search_and_replace_value(self, prs, search_value, replacement_value):
         for slide in prs.slides:
@@ -99,7 +111,6 @@ class PowerPointProcessorApp:
                                             start = run.text.find(search_value)
                                             end = start + len(search_value)
                                             run.text = run.text[:start] + replacement_value + run.text[end:]
-
                                             # Check if the replacement value is above 85% and set color to red
                                             try:
                                                 if float(replacement_value.strip('%')) > 85:
@@ -108,28 +119,19 @@ class PowerPointProcessorApp:
                                                 pass  # In case the replacement value is not a number
                                             return  # Exit after the first match per slide
 
-    def set_text_color(self, run, rgb_color):
-        run.font.color.rgb = rgb_color
-
-    def apply_saw_replacements(self, prs, saw_values):
-        for slide in prs.slides:
-            for shape in slide.shapes:
-                if shape.has_table:
-                    table = shape.table
-                    for row in table.rows:
-                        for cell in row.cells:
-                            for saw_value in saw_values:
-                                if saw_value in cell.text:
-                                    self.search_and_replace_value(prs, saw_value, saw_value)
-
     def apply_combined_replacements(self, prs, combined_replacements):
         for replacement_set in combined_replacements:
             for slide in prs.slides:
                 tables = [shape.table for shape in slide.shapes if shape.has_table]
                 for table in tables:
-                    for placeholder, replacement_value in zip(['31.77%', '53.07%', '83.07%'], replacement_set):
-                        self.search_and_replace_value(prs, placeholder, replacement_value)
-                        break  # Exit after processing one placeholder per slide
+                    for row in table.rows:
+                        for cell in row.cells:
+                            for placeholder, replacement_value in zip(['31.77%', '53.07%', '83.07%'], replacement_set):
+                                self.search_and_replace_value(prs, placeholder, replacement_value)
+                                # Update the placeholder list if needed
+
+    def set_text_color(self, run, color):
+        run.font.color.rgb = color
 
     def process_reports(self):
         try:
@@ -158,3 +160,4 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = PowerPointProcessorApp(root)
     root.mainloop()
+    
