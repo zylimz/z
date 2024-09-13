@@ -1,143 +1,221 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox
-from tkinter import ttk
-import pandas as pd
+from tkinter import filedialog, messagebox, ttk
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.dml.color import RGBColor
+import pandas as pd
+import time
+import threading
 
-class PowerPointProcessorApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("PowerPoint Report Processor")
-        
-        # File selection for Excel and PowerPoint
-        tk.Label(root, text="Select Excel File:").grid(row=0, column=0, padx=10, pady=5)
-        self.entry_excel_path = tk.Entry(root, width=50)
-        self.entry_excel_path.grid(row=0, column=1, padx=10, pady=5)
-        tk.Button(root, text="Browse", command=self.browse_excel_file).grid(row=0, column=2, padx=10, pady=5)
+CHUNK_SIZE = 5  # Adjusted chunk size
+DELAY = 0.1  # Delay between processing chunks
 
-        tk.Label(root, text="Select PowerPoint Template:").grid(row=1, column=0, padx=10, pady=5)
-        self.entry_ppt_path = tk.Entry(root, width=50)
-        self.entry_ppt_path.grid(row=1, column=1, padx=10, pady=5)
-        tk.Button(root, text="Browse", command=self.browse_ppt_file).grid(row=1, column=2, padx=10, pady=5)
-        
-        # Progress label
-        self.progress_label = tk.Label(root, text="")
-        self.progress_label.grid(row=3, column=0, columnspan=3, padx=10, pady=5)
+def browse_file():
+    filepath = filedialog.askopenfilename(
+        filetypes=[("PowerPoint Files", "*.pptx")]
+    )
+    entry_file_path.delete(0, tk.END)
+    entry_file_path.insert(0, filepath)
 
-        # Process button
-        tk.Button(root, text="Process Reports", command=self.process_reports).grid(row=4, column=0, columnspan=3, padx=10, pady=20)
+def browse_excel_file():
+    filepath = filedialog.askopenfilename(
+        filetypes=[("Excel Files", "*.xlsx")]
+    )
+    entry_excel_path.delete(0, tk.END)
+    entry_excel_path.insert(0, filepath)
 
-    def browse_excel_file(self):
-        filepath = filedialog.askopenfilename(filetypes=[("Excel Files", "*.xlsx")])
-        self.entry_excel_path.delete(0, tk.END)
-        self.entry_excel_path.insert(0, filepath)
+def load_presentation(path):
+    if not path:
+        messagebox.showerror("Error", "Please select a PowerPoint file.")
+        return None
+    return Presentation(path)
 
-    def browse_ppt_file(self):
-        filepath = filedialog.askopenfilename(filetypes=[("PowerPoint Files", "*.pptx")])
-        self.entry_ppt_path.delete(0, tk.END)
-        self.entry_ppt_path.insert(0, filepath)
+def extract_data_from_excel(file_path):
+    xls = pd.ExcelFile(file_path)
+    df_servers = pd.read_excel(xls, sheet_name='Servers Part of Report Cycle')
+    df_format = pd.read_excel(xls, sheet_name='Format Box')
 
-    def load_data(self):
-        excel_file = self.entry_excel_path.get()
-        df_report_cycle = pd.read_excel(excel_file, sheet_name='Servers Part of Report Cycle')
-        df_format_box = pd.read_excel(excel_file, sheet_name='Format Box')
-        return df_report_cycle, df_format_box
+    report_names = df_servers['Report Name'].unique()
+    hostname_data = df_servers[['Report Name', 'Hostname']]
+    format_data = df_format[['CPU Utilization', 'Memory Utilization', 'Disk Utilization']]
 
-    def extract_data(self, df_report_cycle, df_format_box):
-        report_names = df_report_cycle['Report Name'].unique()
-        data_by_report = {}
-        for report_name in report_names:
-            report_data = df_report_cycle[df_report_cycle['Report Name'] == report_name]
-            saw_values = report_data['Hostname'].tolist()
-            format_data = df_format_box[df_format_box['Report Name'] == report_name].iloc[0]
-            data_by_report[report_name] = {
-                'saw_values': saw_values,
-                'cpu_utilization': format_data['CPU Utilization'],
-                'memory_utilization': format_data['Memory Utilization'],
-                'disk_utilization': format_data['Disk Utilization']
-            }
-        return data_by_report
+    return report_names, hostname_data, format_data
 
-    def apply_saw_replacements(self, prs, saw_values):
-        replacements = {f"SAW{i+1:02}": value for i, value in enumerate(saw_values)}
+def replace_draft_template(prs, new_text):
+    try:
+        first_slide = prs.slides[0]
+        for shape in first_slide.shapes:
+            if shape.has_text_frame:
+                for paragraph in shape.text_frame.paragraphs:
+                    for run in paragraph.runs:
+                        if "Draft Template" in run.text:
+                            run.text = run.text.replace("Draft Template", new_text)
+                            run.font.color.rgb = RGBColor(0, 0, 0)
+        messagebox.showinfo("Success", f"'Draft Template' replaced with '{new_text}' on the first slide.")
+    except Exception as e:
+        messagebox.showerror("Error", f"An error occurred: {e}")
+
+def apply_draft_replacement(prs, draft_text):
+    try:
+        if draft_text:
+            replace_draft_template(prs, draft_text)
+    except:
+        messagebox.showerror("Error", "Please enter the replacement text for 'Draft Template'.")
+
+def apply_saw_replacements(prs, replacements):
+    try:
         for slide in prs.slides:
             for shape in slide.shapes:
-                self.process_shape(shape, replacements)
+                process_shape(shape, replacements)
+        messagebox.showinfo("Success", "Hostnames->SAW replacements applied.")
+    except Exception as e:
+        messagebox.showerror("Error", f"An error occurred: {e}")
 
-    def process_shape(self, shape, replacements):
-        if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
-            for s in shape.shapes:
-                self.process_shape(s, replacements)
-        elif shape.has_text_frame:
-            text_frame = shape.text_frame
-            self.replace_text_in_text_frame(text_frame, replacements)
+def process_shape(shape, replacements):
+    if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
+        for s in shape.shapes:
+            process_shape(s, replacements)
+    elif shape.has_text_frame:
+        text_frame = shape.text_frame
+        replace_text_in_text_frame(text_frame, replacements)
 
-        if shape.has_table:
-            table = shape.table
-            for row in table.rows:
-                for cell in row.cells:
-                    text_frame = cell.text_frame
-                    self.replace_text_in_text_frame(text_frame, replacements)
+    if shape.has_table:
+        table = shape.table
+        for row in table.rows:
+            for cell in row.cells:
+                text_frame = cell.text_frame
+                replace_text_in_text_frame(text_frame, replacements)
 
-    def replace_text_in_text_frame(self, text_frame, replacements):
-        if text_frame is not None:
-            for paragraph in text_frame.paragraphs:
-                full_text = ''.join([run.text for run in paragraph.runs])
-                for old_text, new_text in replacements.items():
-                    if old_text in full_text:
-                        full_text = full_text.replace(old_text, new_text)
-                        for run in paragraph.runs:
-                            run.text = ''
-                        paragraph.runs[0].text = full_text
-
-    def apply_combined_replacements(self, prs, cpu_utilization, memory_utilization, disk_utilization):
-        for slide in prs.slides:
-            for shape in slide.shapes:
-                if shape.has_table:
-                    table = shape.table
-                    for row in table.rows:
-                        for cell in row.cells:
-                            if '31.77%' in cell.text:
-                                self.replace_value_in_cell(cell, cpu_utilization)
-                            if '53.07%' in cell.text:
-                                self.replace_value_in_cell(cell, memory_utilization)
-                            if '83.07%' in cell.text:
-                                self.replace_value_in_cell(cell, disk_utilization)
-
-    def replace_value_in_cell(self, cell, new_value):
-        text_frame = cell.text_frame
+def replace_text_in_text_frame(text_frame, replacements):
+    if text_frame is not None:
         for paragraph in text_frame.paragraphs:
-            for run in paragraph.runs:
-                if '31.77%' in run.text or '53.07%' in run.text or '83.07%' in run.text:
-                    run.text = run.text.replace('31.77%', new_value)
-                    run.font.color.rgb = RGBColor(255, 0, 0)  # Red color if percentage is high
+            full_text = ''.join([run.text for run in paragraph.runs])
+            for old_text, new_text in replacements.items():
+                if old_text in full_text:
+                    full_text = full_text.replace(old_text, new_text)
+                    for run in paragraph.runs:
+                        run.text = ''
+                    paragraph.runs[0].text = full_text
 
-    def process_reports(self):
-        try:
-            df_report_cycle, df_format_box = self.load_data()
-            data_by_report = self.extract_data(df_report_cycle, df_format_box)
+def set_text_color(run, rgb_color):
+    run.font.color.rgb = rgb_color
 
-            ppt_template = self.entry_ppt_path.get()
-            if not ppt_template:
-                messagebox.showerror("Error", "Please select a PowerPoint template file.")
-                return
+def search_and_replace_value(prs, search_value, replacement_value):
+    for slide in prs.slides:
+        for shape in slide.shapes:
+            if shape.has_table:
+                table = shape.table
+                for row in table.rows:
+                    for cell in row.cells:
+                        if search_value in cell.text:
+                            text_frame = cell.text_frame
+                            for paragraph in text_frame.paragraphs:
+                                for run in paragraph.runs:
+                                    if search_value in run.text:
+                                        start = run.text.find(search_value)
+                                        end = start + len(search_value)
+                                        run.text = run.text[:start] + replacement_value + run.text[end:]
 
-            for report_name, data in data_by_report.items():
-                prs = Presentation(ppt_template)
-                self.apply_saw_replacements(prs, data['saw_values'])
-                self.apply_combined_replacements(prs, data['cpu_utilization'], data['memory_utilization'], data['disk_utilization'])
-                
-                save_path = f'{report_name}_updated.pptx'
-                prs.save(save_path)
-                print(f'Saved {save_path}')
-            
-            messagebox.showinfo("Success", "All reports processed and saved.")
-        except Exception as e:
-            messagebox.showerror("Error", f"An error occurred: {e}")
+                                        try:
+                                            if float(replacement_value.strip('%')) > 85:
+                                                set_text_color(run, RGBColor(255, 0, 0))
+                                        except ValueError:
+                                            pass
+                                        return
 
-if __name__ == "__main__":
-    root = tk.Tk()
-    app = PowerPointProcessorApp(root)
-    root.mainloop()
+def apply_combined_replacements(prs, combined_replacements):
+    try:
+        total_lines = len(combined_replacements)
+        for start in range(0, total_lines, CHUNK_SIZE):
+            chunk = combined_replacements[start:start + CHUNK_SIZE]
+
+            for line in chunk:
+                try:
+                    value_31, value_53, value_83 = line.split()
+                    search_and_replace_value(prs, "31.77%", value_31)
+                    search_and_replace_value(prs, "53.07%", value_53)
+                    search_and_replace_value(prs, "83.07%", value_83)
+                except ValueError:
+                    messagebox.showerror("Error", "Each line must contain exactly three values separated by spaces.")
+                    return
+
+            progress = min(start + CHUNK_SIZE, total_lines)
+            progress_label.config(text=f"Processing {progress}/{total_lines} lines...")
+            root.update_idletasks()
+            time.sleep(DELAY)
+
+        messagebox.showinfo("Success", "Combined replacements applied.")
+    except Exception as e:
+        messagebox.showerror("Error", f"An error occurred: {e}")
+
+def save_changes(prs, save_path):
+    if prs:
+        prs.save(save_path)
+        messagebox.showinfo("Success", f"Changes saved to {save_path}")
+    else:
+        messagebox.showerror("Error", "No presentation loaded.")
+
+def create_presentation_from_template(template_path, save_path, draft_text, replacements, combined_replacements):
+    prs = load_presentation(template_path)
+    if prs:
+        apply_draft_replacement(prs, draft_text)
+        apply_saw_replacements(prs, replacements)
+        apply_combined_replacements(prs, combined_replacements)
+        save_changes(prs, save_path)
+
+def process_excel_data(excel_path, template_path):
+    report_names, hostname_data, format_data = extract_data_from_excel(excel_path)
+    
+    for report_name in report_names:
+        hostnames = hostname_data[hostname_data['Report Name'] == report_name]['Hostname'].tolist()
+        format_values = format_data.iloc[0]
+        cpu = format_values['CPU Utilization']
+        memory = format_values['Memory Utilization']
+        disk = format_values['Disk Utilization']
+
+        draft_text = report_name
+        saw_replacements = {f"SAW{i+1:02}": hostname for i, hostname in enumerate(hostnames)}
+        combined_replacements = {
+            "31.77%": cpu,
+            "53.07%": memory,
+            "83.07%": disk
+        }
+
+        save_path = f"{report_name}_modified.pptx"
+        create_presentation_from_template(template_path, save_path, draft_text, saw_replacements, combined_replacements)
+
+def start_threaded_processing():
+    threading.Thread(target=process_excel_data, args=(entry_excel_path.get(), entry_file_path.get())).start()
+
+root = tk.Tk()
+root.title("PowerPoint Report Text Replacer")
+
+notebook = ttk.Notebook(root)
+notebook.grid(row=0, column=0, padx=10, pady=10)
+
+tab1 = ttk.Frame(notebook)
+notebook.add(tab1, text="Hostnames->SAW Replacements")
+
+tk.Label(tab1, text="Select PowerPoint File:").grid(row=0, column=0, padx=10, pady=5)
+entry_file_path = tk.Entry(tab1, width=50)
+entry_file_path.grid(row=0, column=1, padx=10, pady=5)
+tk.Button(tab1, text="Browse", command=browse_file).grid(row=0, column=2, padx=10, pady=5)
+
+tk.Label(tab1, text="Replacement Input (one per line):").grid(row=2, column=0, padx=10, pady=5)
+entry_replacements = tk.Text(tab1, width=50, height=20)
+entry_replacements.grid(row=2, column=1, padx=10, pady=5)
+
+tab_combined = ttk.Frame(notebook)
+notebook.add(tab_combined, text="Combined Replacements")
+
+tk.Label(tab_combined, text="Replacement Values for\n CPU, Memory and Disk Utilization \n (three per line, separated by spaces):").grid(row=0, column=0, padx=10, pady=5)
+entry_combined = tk.Text(tab_combined, width=50, height=20)
+entry_combined.grid(row=0, column=1, padx=10, pady=5)
+
+tab_draft = ttk.Frame(notebook)
+notebook.add(tab_draft, text="Replace 'Draft Template'")
+
+tk.Label(tab_draft, text="Replacement Text:").grid(row=0, column=0, padx=10, pady=5)
+entry_draft = tk.Entry(tab_draft, width=50)
+entry_draft.grid(row=0, column=1, padx=10, pady=
+        
