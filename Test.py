@@ -50,11 +50,14 @@ class PowerPointProcessorApp:
         for report_name in report_names:
             report_data = df_report_cycle[df_report_cycle['Report Name'] == report_name]
             saw_values = report_data['Hostname'].astype(str).tolist()  # Ensure values are strings
-            format_data = df_format_box[df_format_box['Report Name'] == report_name].iloc[0]
+            format_data = df_format_box[df_format_box['Report Name'] == report_name]
             combined_replacements = [
-                [str(format_data['CPU Utilization']),
-                 str(format_data['Memory Utilization']),
-                 str(format_data['Disk Utilization'])]
+                [
+                    str(row['CPU Utilization']),
+                    str(row['Memory Utilization']),
+                    str(row['Disk Utilization'])
+                ]
+                for _, row in format_data.iterrows()
             ]
             data_by_report[report_name] = {
                 'saw_values': saw_values,
@@ -95,7 +98,8 @@ class PowerPointProcessorApp:
                         paragraph.runs[0].text = full_text
 
     def apply_combined_replacements(self, prs, values_list):
-        for i, (cpu_utilization, memory_utilization, disk_utilization) in enumerate(values_list):
+        for values in values_list:
+            cpu_utilization, memory_utilization, disk_utilization = values
             cpu_utilization = str(cpu_utilization)
             memory_utilization = str(memory_utilization)
             disk_utilization = str(disk_utilization)
@@ -148,10 +152,7 @@ class PowerPointProcessorApp:
                 self.apply_saw_replacements(prs, data['saw_values'])
                 
                 # Extract combined replacement values as a list of lists
-                combined_values = [
-                    [str(row['CPU Utilization']), str(row['Memory Utilization']), str(row['Disk Utilization'])]
-                    for _, row in df_format_box[df_format_box['Report Name'] == report_name].iterrows()
-                ]
+                combined_values = data['combined_replacements']
                 
                 self.apply_combined_replacements(prs, combined_values)
                 
@@ -167,4 +168,3 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = PowerPointProcessorApp(root)
     root.mainloop()
-    
