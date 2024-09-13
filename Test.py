@@ -5,7 +5,6 @@ import pandas as pd
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.dml.color import RGBColor
-import numpy as np
 
 class PowerPointProcessorApp:
     def __init__(self, root):
@@ -51,13 +50,13 @@ class PowerPointProcessorApp:
         data_by_report = {}
         for report_name in report_names:
             report_data = df_report_cycle[df_report_cycle['Report Name'] == report_name]
-            saw_values = report_data['Hostname'].astype(str).tolist()
+            saw_values = report_data['Hostname'].astype(str).tolist()  # Ensure values are strings
             format_data = df_format_box[df_format_box['Report Name'] == report_name].iloc[0]
             data_by_report[report_name] = {
                 'saw_values': saw_values,
-                'cpu_utilization': format_data['CPU Utilization'],
-                'memory_utilization': format_data['Memory Utilization'],
-                'disk_utilization': format_data['Disk Utilization']
+                'cpu_utilization': str(format_data['CPU Utilization']),
+                'memory_utilization': str(format_data['Memory Utilization']),
+                'disk_utilization': str(format_data['Disk Utilization'])
             }
         return data_by_report
 
@@ -98,16 +97,20 @@ class PowerPointProcessorApp:
         for i, slide in enumerate(slides):
             if i < len(values_list):
                 cpu_utilization, memory_utilization, disk_utilization = values_list[i]
+                cpu_utilization = str(cpu_utilization)
+                memory_utilization = str(memory_utilization)
+                disk_utilization = str(disk_utilization)
                 for shape in slide.shapes:
                     if shape.has_table:
                         table = shape.table
                         for row in table.rows:
                             for cell in row.cells:
-                                if '31.77%' in cell.text:
+                                cell_text = cell.text
+                                if '31.77%' in cell_text:
                                     self.replace_value_in_cell(cell, cpu_utilization)
-                                if '53.07%' in cell.text:
+                                if '53.07%' in cell_text:
                                     self.replace_value_in_cell(cell, memory_utilization)
-                                if '83.07%' in cell.text:
+                                if '83.07%' in cell_text:
                                     self.replace_value_in_cell(cell, disk_utilization)
 
     def replace_value_in_cell(self, cell, new_value):
@@ -132,14 +135,12 @@ class PowerPointProcessorApp:
                 prs = Presentation(ppt_template)
                 self.apply_saw_replacements(prs, data['saw_values'])
                 
-                # Prepare the values list
+                # Prepare the values list as text
                 values_list = []
-                cpu_utilizations = data['cpu_utilization']
-                memory_utilizations = data['memory_utilization']
-                disk_utilizations = data['disk_utilization']
-
-                for cpu, mem, disk in zip(cpu_utilizations, memory_utilizations, disk_utilizations):
-                    values_list.append([str(cpu), str(mem), str(disk)])
+                for line in data['cpu_utilization'].splitlines():
+                    values = line.split()
+                    if len(values) == 3:
+                        values_list.append(values)
                 
                 self.apply_combined_replacements(prs, values_list)
                 
