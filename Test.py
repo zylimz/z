@@ -106,7 +106,7 @@ class PowerPointProcessorApp:
                 self.replace_values_in_table(table, values)
 
     def replace_values_in_table(self, table, values):
-        value_iterator = iter(values)
+        # Use the values list for replacement
         for row in table.rows:
             for cell in row.cells:
                 text_frame = cell.text_frame
@@ -114,14 +114,17 @@ class PowerPointProcessorApp:
                     for paragraph in text_frame.paragraphs:
                         for run in paragraph.runs:
                             original_text = run.text.strip()
-                            if original_text in ['31.77%', '53.07%', '83.07%']:  # Assuming these are your placeholders
-                                try:
-                                    new_value = next(value_iterator)
-                                    run.text = new_value
-                                    if float(new_value.strip('%')) > 85:
-                                        self.set_text_color(run, RGBColor(255, 0, 0))  # Red color
-                                except StopIteration:
-                                    return  # Exit if there are no more values to replace
+                            for i, placeholder in enumerate(['31.77%', '53.07%', '83.07%']):
+                                if original_text == placeholder:
+                                    try:
+                                        new_value = values[i]
+                                        run.text = new_value
+                                        if float(new_value.strip('%')) > 85:
+                                            self.set_text_color(run, RGBColor(255, 0, 0))  # Red color
+                                    except IndexError:
+                                        pass  # If there are fewer replacement values than placeholders
+                                    except ValueError:
+                                        pass  # If the new value is not a number
 
     def set_text_color(self, run, color):
         run.font.color.rgb = color
@@ -153,3 +156,4 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = PowerPointProcessorApp(root)
     root.mainloop()
+    
