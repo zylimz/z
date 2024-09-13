@@ -98,7 +98,7 @@ class PowerPointProcessorApp:
                         paragraph.runs[0].text = full_text
 
     def apply_combined_replacements(self, prs, combined_replacements):
-        for values in combined_replacements:
+        for i, values in enumerate(combined_replacements):
             cpu_utilization, memory_utilization, disk_utilization = values
             cpu_utilization = str(cpu_utilization)
             memory_utilization = str(memory_utilization)
@@ -106,17 +106,15 @@ class PowerPointProcessorApp:
 
             print(f"Replacing with CPU: {cpu_utilization}, Memory: {memory_utilization}, Disk: {disk_utilization}")
 
+            slide_replacements = 0
             for slide in prs.slides:
-                replacement_done = False
-                for shape in slide.shapes:
-                    if shape.has_table:
-                        # Only process the first match
-                        if not replacement_done:
-                            self.search_and_replace_value(shape, '31.77%', cpu_utilization)
-                            self.search_and_replace_value(shape, '53.07%', memory_utilization)
-                            self.search_and_replace_value(shape, '83.07%', disk_utilization)
-                            replacement_done = True  # Mark as done
-                            break  # Exit after processing one shape per set of values
+                if slide_replacements < len(combined_replacements):
+                    self.search_and_replace_value(slide, '31.77%', cpu_utilization)
+                    self.search_and_replace_value(slide, '53.07%', memory_utilization)
+                    self.search_and_replace_value(slide, '83.07%', disk_utilization)
+                    slide_replacements += 1
+                else:
+                    break  # Move to the next set of values
 
     def search_and_replace_value(self, shape, search_value, replacement_value):
         if shape.has_table:
