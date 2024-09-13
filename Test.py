@@ -31,15 +31,19 @@ def load_presentation(path):
     return Presentation(path)
 
 def extract_data_from_excel(file_path):
-    xls = pd.ExcelFile(file_path)
-    df_servers = pd.read_excel(xls, sheet_name='Servers Part of Report Cycle')
-    df_format = pd.read_excel(xls, sheet_name='Format Box')
+    try:
+        xls = pd.ExcelFile(file_path)
+        df_servers = pd.read_excel(xls, sheet_name='Servers Part of Report Cycle')
+        df_format = pd.read_excel(xls, sheet_name='Format Box')
 
-    report_names = df_servers['Report Name'].unique()
-    hostname_data = df_servers[['Report Name', 'Hostname']]
-    format_data = df_format[['CPU Utilization', 'Memory Utilization', 'Disk Utilization']]
+        report_names = df_servers['Report Name'].unique()
+        hostname_data = df_servers[['Report Name', 'Hostname']]
+        format_data = df_format[['CPU Utilization', 'Memory Utilization', 'Disk Utilization']]
 
-    return report_names, hostname_data, format_data
+        return report_names, hostname_data, format_data
+    except Exception as e:
+        messagebox.showerror("Error", f"An error occurred while extracting data from Excel: {e}")
+        return None, None, None
 
 def replace_draft_template(prs, new_text):
     try:
@@ -125,9 +129,10 @@ def search_and_replace_value(prs, search_value, replacement_value):
 
 def apply_combined_replacements(prs, combined_replacements):
     try:
-        total_lines = len(combined_replacements)
+        combined_replacements_list = combined_replacements.values()
+        total_lines = len(combined_replacements_list)
         for start in range(0, total_lines, CHUNK_SIZE):
-            chunk = combined_replacements[start:start + CHUNK_SIZE]
+            chunk = list(combined_replacements_list)[start:start + CHUNK_SIZE]
 
             for line in chunk:
                 try:
@@ -165,6 +170,9 @@ def create_presentation_from_template(template_path, save_path, draft_text, repl
 
 def process_excel_data(excel_path, template_path):
     report_names, hostname_data, format_data = extract_data_from_excel(excel_path)
+    
+    if report_names is None or hostname_data is None or format_data is None:
+        return
     
     for report_name in report_names:
         hostnames = hostname_data[hostname_data['Report Name'] == report_name]['Hostname'].tolist()
@@ -209,17 +217,10 @@ tab_combined = ttk.Frame(notebook)
 notebook.add(tab_combined, text="Combined Replacements")
 
 tk.Label(tab_combined, text="Replacement Values for\n CPU, Memory and Disk Utilization \n (three per line, separated by spaces):").grid(row=0, column=0, padx=10, pady=5)
-entry_combined = tk.Text(tab_combined, width=50, height=20)
+entry_combined = tk.Text(tab_combined, width=50, height=10)
 entry_combined.grid(row=0, column=1, padx=10, pady=5)
 
-tab_draft = ttk.Frame(notebook)
-notebook.add(tab_draft, text="Replace 'Draft Template'")
-
-tk.Label(tab_draft, text="Replacement Text:").grid(row=0, column=0, padx=10, pady=5)
-entry_draft = tk.Entry(tab_draft, width=50)
-entry_draft.grid(row=0, column=1, padx=10, pady=5)
-
-tk.Button(tab1, text="Apply Replacements", command=start_threaded_processing).grid(row=3, column=1, padx=10, pady=20)
+tk.Button(tab_combined, text="Apply Combined Replacements", command=start_threaded_processing).grid(row=1, column=1, padx=10, pady=20)
 
 tk.Label(tab1, text="Select Excel File:").grid(row=1, column=0, padx=10, pady=5)
 entry_excel_path = tk.Entry(tab1, width=50)
