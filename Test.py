@@ -100,28 +100,27 @@ class PowerPointProcessorApp:
         for slide in prs.slides:
             tables = [shape.table for shape in slide.shapes if shape.has_table]
             for table in tables:
-                for i, values in enumerate(combined_replacements):
-                    if i >= len(table.rows):
-                        break
-                    row = table.rows[i]
-                    for j, value in enumerate(values):
-                        if j >= len(row.cells):
-                            break
-                        cell = row.cells[j]
-                        self.replace_text_in_cell(cell, value)
+                if not combined_replacements:
+                    break
+                # Use the first set of replacement values for this table
+                values = combined_replacements.pop(0)
+                self.replace_values_in_table(table, values)
 
-    def replace_text_in_cell(self, cell, replacement_value):
-        text_frame = cell.text_frame
-        if text_frame is not None:
-            for paragraph in text_frame.paragraphs:
-                for run in paragraph.runs:
-                    if run.text.strip() in ['31.77%', '53.07%', '83.07%']:  # Assuming these are your placeholders
-                        run.text = replacement_value
-                        try:
-                            if float(replacement_value.strip('%')) > 85:
-                                self.set_text_color(run, RGBColor(255, 0, 0))  # Red color
-                        except ValueError:
-                            pass  # In case the replacement value is not a number
+    def replace_values_in_table(self, table, values):
+        for row in table.rows:
+            for cell in row.cells:
+                text_frame = cell.text_frame
+                if text_frame is not None:
+                    for paragraph in text_frame.paragraphs:
+                        for run in paragraph.runs:
+                            if run.text.strip() in ['31.77%', '53.07%', '83.07%']:  # Assuming these are your placeholders
+                                run.text = values[0]
+                                values.pop(0)
+                                try:
+                                    if float(run.text.strip('%')) > 85:
+                                        self.set_text_color(run, RGBColor(255, 0, 0))  # Red color
+                                except ValueError:
+                                    pass  # In case the replacement value is not a number
 
     def set_text_color(self, run, color):
         run.font.color.rgb = color
