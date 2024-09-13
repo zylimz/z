@@ -4,6 +4,7 @@ from tkinter import filedialog, messagebox, ttk
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.dml.color import RGBColor
+import pandas as pd
 
 # Helper function to run a function in a separate thread
 def run_in_background(func):
@@ -52,29 +53,36 @@ def replace_draft_template(prs, new_text):
 def apply_draft_replacement():
     prs = load_presentation()
     if prs:
-        new_text = entry_draft.get().strip()
-        if new_text:
-            replace_draft_template(prs, new_text)
+        excel_path = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx")])
+        if not excel_path:
+            messagebox.showerror("Error", "No Excel file selected.")
+            return
+        
+        df = pd.read_excel(excel_path, sheet_name=0)
+        for name in df['name'].unique():
+            replace_draft_template(prs, name)
             save_changes(prs)
-        else:
-            messagebox.showerror("Error", "Please enter the replacement text for 'Draft Template'.")
 
 # Function to apply SAW replacements
 def apply_saw_replacements(prs):
-    saw_replacements = [line.strip() for line in text_saw.get("1.0", "end").strip().split('\n') if line.strip()]
-    if len(saw_replacements) > 90:
-        messagebox.showerror("Error", "Too many replacement values provided.")
+    excel_path = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx")])
+    if not excel_path:
+        messagebox.showerror("Error", "No Excel file selected.")
         return
-    replacements = {f"SAW{str(i+1).zfill(2)}": saw_replacements[i] for i in range(len(saw_replacements))}
+    
+    df = pd.read_excel(excel_path, sheet_name=0)
+    for name in df['name'].unique():
+        saw_replacements = df[df['name'] == name]['hostname'].tolist()
+        replacements = {f"SAW{str(i+1).zfill(2)}": saw_replacements[i] for i in range(len(saw_replacements))}
 
-    for slide in prs.slides:
-        for shape in slide.shapes:
-            if shape.has_text_frame:
-                replace_text_in_text_frame(shape.text_frame, replacements)
-            elif shape.shape_type == MSO_SHAPE_TYPE.GROUP:
-                for grouped_shape in shape.shapes:
-                    if grouped_shape.has_text_frame:
-                        replace_text_in_text_frame(grouped_shape.text_frame, replacements)
+        for slide in prs.slides:
+            for shape in slide.shapes:
+                if shape.has_text_frame:
+                    replace_text_in_text_frame(shape.text_frame, replacements)
+                elif shape.shape_type == MSO_SHAPE_TYPE.GROUP:
+                    for grouped_shape in shape.shapes:
+                        if grouped_shape.has_text_frame:
+                            replace_text_in_text_frame(grouped_shape.text_frame, replacements)
 
 # Function to replace text in a text frame
 def replace_text_in_text_frame(text_frame, replacements):
@@ -93,32 +101,34 @@ def replace_text_in_text_frame(text_frame, replacements):
 
 # Function to apply combined replacements
 def apply_combined_replacements(prs):
-    combined_replacements = [line.strip().split() for line in text_combined.get("1.0", "end").strip().split('\n') if line.strip()]
-    if any(len(replacement) != 3 for replacement in combined_replacements):
-        messagebox.showerror("Error", "Each line must contain exactly 3 values.")
+    excel_path = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx")])
+    if not excel_path:
+        messagebox.showerror("Error", "No Excel file selected.")
         return
+    
+    df = pd.read_excel(excel_path, sheet_name=1)
+    for name in df['name'].unique():
+        combined_replacements = df[df['name'] == name].iloc[0].to_dict()
+        replacements = {
+            "31.77%": combined_replacements['memory utilisation'],
+            "53.07%": combined_replacements['CPU utilisation'],
+            "83.07%": combined_replacements['disk utilisation'],
+        }
 
-    replacements_list = [
-        {"31.77%": values[0], "53.07%": values[1], "83.07%": values[2]}
-        for values in combined_replacements
-    ]
-
-    for i, slide in enumerate(prs.slides):
-        if i >= len(replacements_list):
-            break
-        replacements = replacements_list[i]
-        for shape in slide.shapes:
-            if shape.has_text_frame:
-                replace_text_in_text_frame(shape.text_frame, replacements)
-            elif shape.shape_type == MSO_SHAPE_TYPE.GROUP:
-                for grouped_shape in shape.shapes:
-                    if grouped_shape.has_text_frame:
-                        replace_text_in_text_frame(grouped_shape.text_frame, replacements)
+        for slide in prs.slides:
+            for shape in slide.shapes:
+                if shape.has_text_frame:
+                    replace_text_in_text_frame(shape.text_frame, replacements)
+                elif shape.shape_type == MSO_SHAPE_TYPE.GROUP:
+                    for grouped_shape in shape.shapes:
+                        if grouped_shape.has_text_frame:
+                            replace_text_in_text_frame(grouped_shape.text_frame, replacements)
 
 # Apply all replacements in a separate thread
 def apply_all_replacements():
     prs = load_presentation()
     if prs:
+        apply_draft_replacement()
         apply_saw_replacements(prs)
         apply_combined_replacements(prs)
         save_changes(prs)
