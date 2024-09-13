@@ -78,8 +78,7 @@ class PowerPointProcessorApp:
         elif shape.has_text_frame:
             text_frame = shape.text_frame
             self.replace_text_in_text_frame(text_frame, replacements)
-
-        if shape.has_table:
+        elif shape.has_table:
             table = shape.table
             for row in table.rows:
                 for cell in row.cells:
@@ -98,45 +97,31 @@ class PowerPointProcessorApp:
                         paragraph.runs[0].text = full_text
 
     def apply_combined_replacements(self, prs, combined_replacements):
-        for i, values in enumerate(combined_replacements):
-            cpu_utilization, memory_utilization, disk_utilization = values
-            cpu_utilization = str(cpu_utilization)
-            memory_utilization = str(memory_utilization)
-            disk_utilization = str(disk_utilization)
+        for slide in prs.slides:
+            tables = [shape.table for shape in slide.shapes if shape.has_table]
+            for table in tables:
+                for i, values in enumerate(combined_replacements):
+                    if i >= len(table.rows):
+                        break
+                    row = table.rows[i]
+                    for j, value in enumerate(values):
+                        if j >= len(row.cells):
+                            break
+                        cell = row.cells[j]
+                        self.replace_text_in_cell(cell, value)
 
-            print(f"Replacing with CPU: {cpu_utilization}, Memory: {memory_utilization}, Disk: {disk_utilization}")
-
-            # Apply each set of replacements to the slides
-            for slide in prs.slides:
-                self.search_and_replace_value(slide, '31.77%', cpu_utilization)
-                self.search_and_replace_value(slide, '53.07%', memory_utilization)
-                self.search_and_replace_value(slide, '83.07%', disk_utilization)
-
-                # Move to the next set of values
-                break  # Ensure only one set of replacements is done per slide
-
-    def search_and_replace_value(self, slide, search_value, replacement_value):
-        for shape in slide.shapes:
-            if shape.has_table:
-                table = shape.table
-                for row in table.rows:
-                    for cell in row.cells:
-                        if search_value in cell.text:
-                            text_frame = cell.text_frame
-                            for paragraph in text_frame.paragraphs:
-                                for run in paragraph.runs:
-                                    if search_value in run.text:
-                                        start = run.text.find(search_value)
-                                        end = start + len(search_value)
-                                        run.text = run.text[:start] + replacement_value + run.text[end:]
-
-                                        # Check if the replacement value is above 85% and set color to red
-                                        try:
-                                            if float(replacement_value.strip('%')) > 85:
-                                                self.set_text_color(run, RGBColor(255, 0, 0))  # Red color
-                                        except ValueError:
-                                            pass  # In case the replacement value is not a number
-                                        return  # Exit after the first match per shape
+    def replace_text_in_cell(self, cell, replacement_value):
+        text_frame = cell.text_frame
+        if text_frame is not None:
+            for paragraph in text_frame.paragraphs:
+                for run in paragraph.runs:
+                    if run.text.strip() in ['31.77%', '53.07%', '83.07%']:  # Assuming these are your placeholders
+                        run.text = replacement_value
+                        try:
+                            if float(replacement_value.strip('%')) > 85:
+                                self.set_text_color(run, RGBColor(255, 0, 0))  # Red color
+                        except ValueError:
+                            pass  # In case the replacement value is not a number
 
     def set_text_color(self, run, color):
         run.font.color.rgb = color
