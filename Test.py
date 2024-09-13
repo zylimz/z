@@ -87,31 +87,35 @@ class PowerPointProcessorApp:
                 full_text = ''.join([run.text for run in paragraph.runs])
                 for old_text, new_text in replacements.items():
                     if old_text in full_text:
-                        full_text = full_text.replace(old_text, new_text)
+                        full_text = full_text.replace(old_text, new_text, 1)  # Replace only the first occurrence
                         for run in paragraph.runs:
                             run.text = ''
                         paragraph.runs[0].text = full_text
 
     def apply_combined_replacements(self, prs, values_list):
-        slides = prs.slides
-        for i, slide in enumerate(slides):
-            if i < len(values_list):
-                cpu_utilization, memory_utilization, disk_utilization = values_list[i]
+        for slide in prs.slides:
+            if values_list:
+                cpu_utilization, memory_utilization, disk_utilization = values_list[0]
                 cpu_utilization = str(cpu_utilization)
                 memory_utilization = str(memory_utilization)
                 disk_utilization = str(disk_utilization)
-                for shape in slide.shapes:
-                    if shape.has_table:
-                        table = shape.table
-                        for row in table.rows:
-                            for cell in row.cells:
-                                cell_text = cell.text
-                                if '31.77%' in cell_text:
-                                    self.replace_value_in_cell(cell, cpu_utilization)
-                                if '53.07%' in cell_text:
-                                    self.replace_value_in_cell(cell, memory_utilization)
-                                if '83.07%' in cell_text:
-                                    self.replace_value_in_cell(cell, disk_utilization)
+                self.replace_values_on_slide(slide, cpu_utilization, memory_utilization, disk_utilization)
+                # Remove the first set of values after processing
+                values_list.pop(0)
+
+    def replace_values_on_slide(self, slide, cpu_utilization, memory_utilization, disk_utilization):
+        for shape in slide.shapes:
+            if shape.has_table:
+                table = shape.table
+                for row in table.rows:
+                    for cell in row.cells:
+                        cell_text = cell.text
+                        if '31.77%' in cell_text:
+                            self.replace_value_in_cell(cell, cpu_utilization)
+                        elif '53.07%' in cell_text:
+                            self.replace_value_in_cell(cell, memory_utilization)
+                        elif '83.07%' in cell_text:
+                            self.replace_value_in_cell(cell, disk_utilization)
 
     def replace_value_in_cell(self, cell, new_value):
         text_frame = cell.text_frame
@@ -156,3 +160,4 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = PowerPointProcessorApp(root)
     root.mainloop()
+    
