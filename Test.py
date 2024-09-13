@@ -217,5 +217,16 @@ notebook.add(tab_draft, text="Replace 'Draft Template'")
 
 tk.Label(tab_draft, text="Replacement Text:").grid(row=0, column=0, padx=10, pady=5)
 entry_draft = tk.Entry(tab_draft, width=50)
-entry_draft.grid(row=0, column=1, padx=10, pady=
-        
+entry_draft.grid(row=0, column=1, padx=10, pady=5)
+
+tk.Button(tab1, text="Apply Replacements", command=start_threaded_processing).grid(row=3, column=1, padx=10, pady=20)
+
+tk.Label(tab1, text="Select Excel File:").grid(row=1, column=0, padx=10, pady=5)
+entry_excel_path = tk.Entry(tab1, width=50)
+entry_excel_path.grid(row=1, column=1, padx=10, pady=5)
+tk.Button(tab1, text="Browse", command=browse_excel_file).grid(row=1, column=2, padx=10, pady=5)
+
+progress_label = tk.Label(root, text="")
+progress_label.grid(row=1, column=0, padx=10, pady=5)
+
+root.mainloop()
