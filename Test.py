@@ -106,37 +106,37 @@ class PowerPointProcessorApp:
 
             print(f"Replacing with CPU: {cpu_utilization}, Memory: {memory_utilization}, Disk: {disk_utilization}")
 
-            slide_replacements = 0
+            # Apply each set of replacements to the slides
             for slide in prs.slides:
-                if slide_replacements < len(combined_replacements):
-                    self.search_and_replace_value(slide, '31.77%', cpu_utilization)
-                    self.search_and_replace_value(slide, '53.07%', memory_utilization)
-                    self.search_and_replace_value(slide, '83.07%', disk_utilization)
-                    slide_replacements += 1
-                else:
-                    break  # Move to the next set of values
+                self.search_and_replace_value(slide, '31.77%', cpu_utilization)
+                self.search_and_replace_value(slide, '53.07%', memory_utilization)
+                self.search_and_replace_value(slide, '83.07%', disk_utilization)
 
-    def search_and_replace_value(self, shape, search_value, replacement_value):
-        if shape.has_table:
-            table = shape.table
-            for row in table.rows:
-                for cell in row.cells:
-                    if search_value in cell.text:
-                        text_frame = cell.text_frame
-                        for paragraph in text_frame.paragraphs:
-                            for run in paragraph.runs:
-                                if search_value in run.text:
-                                    start = run.text.find(search_value)
-                                    end = start + len(search_value)
-                                    run.text = run.text[:start] + replacement_value + run.text[end:]
+                # Move to the next set of values
+                break  # Ensure only one set of replacements is done per slide
 
-                                    # Check if the replacement value is above 85% and set color to red
-                                    try:
-                                        if float(replacement_value.strip('%')) > 85:
-                                            self.set_text_color(run, RGBColor(255, 0, 0))  # Red color
-                                    except ValueError:
-                                        pass  # In case the replacement value is not a number
-                                    return  # Exit after the first match per shape
+    def search_and_replace_value(self, slide, search_value, replacement_value):
+        for shape in slide.shapes:
+            if shape.has_table:
+                table = shape.table
+                for row in table.rows:
+                    for cell in row.cells:
+                        if search_value in cell.text:
+                            text_frame = cell.text_frame
+                            for paragraph in text_frame.paragraphs:
+                                for run in paragraph.runs:
+                                    if search_value in run.text:
+                                        start = run.text.find(search_value)
+                                        end = start + len(search_value)
+                                        run.text = run.text[:start] + replacement_value + run.text[end:]
+
+                                        # Check if the replacement value is above 85% and set color to red
+                                        try:
+                                            if float(replacement_value.strip('%')) > 85:
+                                                self.set_text_color(run, RGBColor(255, 0, 0))  # Red color
+                                        except ValueError:
+                                            pass  # In case the replacement value is not a number
+                                        return  # Exit after the first match per shape
 
     def set_text_color(self, run, color):
         run.font.color.rgb = color
@@ -172,4 +172,3 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = PowerPointProcessorApp(root)
     root.mainloop()
-    
