@@ -1,60 +1,51 @@
-import pandas as pd
-from openpyxl import load_workbook, Workbook
-from openpyxl.utils.dataframe import dataframe_to_rows
-from openpyxl.styles import Alignment, PatternFill
-import os
+from pptx.oxml import parse_xml
+from pptx.oxml.ns import nsdecls
+from pptx.dml.color import RGBColor
 
-file_path = 'tested.xlsx'
-output_file_path = 'filtered.xlsx'
+def set_cell_border(cell, color=RGBColor(0, 0, 0), border_width=12700):
+    """
+    Sets borders for a given cell in a table.
 
-# Check if the file exists
-if not os.path.exists(file_path):
-    raise FileNotFoundError(f"The file {file_path} does not exist.")
+    Parameters:
+    cell (Cell): The table cell to which borders will be applied.
+    color (RGBColor): The color of the border (default is black).
+    border_width (int): The width of the border in EMUs (default is 12700 = 1pt).
+    
+    Returns:
+    None: Modifies the cell's borders in place.
+    """
+    # Define the border XML structure
+    border_xml = (
+        f'<a:lnW w="{border_width}">'
+        f'  <a:solidFill>'
+        f'    <a:srgbClr val="{color.rgb_hex[2:]}" />'  # Apply color in hex without the '#'
+        f'  </a:solidFill>'
+        f'  <a:prstDash val="solid"/>'
+        f'</a:lnW>'
+    )
 
-# Load the original Excel file into a DataFrame
-df = pd.read_excel(file_path)
+    # Add the border to each side of the cell
+    cell_top = parse_xml(f'<a:tcPr {nsdecls("a")}>{border_xml}</a:tcPr>')
+    cell._element.get_or_add_tcPr().append(cell_top)
 
-# Filter the DataFrame to include rows where:
-# 1. 'location' is "Singapore" or blank
-# 2. 'u_mbag_closest_as' has non-blank values
-# 3. 'sys_class_name' is one of the specified values
-# 4. 'operational_status' is "Operational"
-# 5. Remove duplicates based on the 'name' column
-filtered_df = df[
-    ((df['location'].fillna('') == 'Singapore') | (df['location'].isna())) &
-    (df['u_mbag_closest_as'].notna() & (df['u_mbag_closest_as'] != '')) &
-    (df['sys_class_name'].isin(['Server', 'Linux Server', 'AIX Server', 'Windows Server'])) &
-    (df['operational_status'] == 'operational')
-].drop_duplicates(subset='name')
+def add_table_borders(table):
+    """
+    Adds borders to all cells in a table.
+    
+    Parameters:
+    table (Table): The table object where borders will be added to all cells.
+    
+    Returns:
+    None: Modifies the table's cells in place.
+    """
+    # Iterate through all rows and columns in the table
+    for row in table.rows:
+        for cell in row.cells:
+            set_cell_border(cell)
 
-# Load the original workbook and the first sheet to get column widths
-book = load_workbook(file_path)
-sheet = book.active
+# Example usage:
+table_shape = slide.shapes[-1]  # Assuming the table is the last shape added
+table = table_shape.table  # Access the table object
 
-# Create a new workbook and add a new sheet
-new_book = Workbook()
-new_sheet = new_book.active
-new_sheet.title = 'FilteredData'
-
-# Copy column widths from the original sheet to the new sheet
-for col in sheet.column_dimensions:
-    new_sheet.column_dimensions[col].width = sheet.column_dimensions[col].width
-
-# Define center alignment
-center_alignment = Alignment(horizontal='center', vertical='center')
-
-# Define turquoise fill
-turquoise_fill = PatternFill(start_color='40E0D0', end_color='40E0D0', fill_type='solid')
-
-# Add filtered data to the new sheet starting from the first row
-for r_idx, row in enumerate(dataframe_to_rows(filtered_df, index=False, header=True), start=1):
-    for c_idx, value in enumerate(row, start=1):
-        cell = new_sheet.cell(row=r_idx, column=c_idx, value=value)
-        cell.alignment = center_alignment
-        if r_idx == 1:  # Apply turquoise fill to the first row
-            cell.fill = turquoise_fill
-
-# Save the new workbook with filtered data
-new_book.save(output_file_path)
-
-print(f"Filtered data with column widths, center alignment, turquoise header, and removed duplicates in 'name' has been saved to '{output_file_path}'.")
+# Apply borders to all cells in the table
+add_table_borders(table)
