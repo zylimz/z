@@ -14,38 +14,48 @@ def set_cell_border(cell, color=RGBColor(0, 0, 0), border_width=12700):
     Returns:
     None: Modifies the cell's borders in place.
     """
-    # Define the border XML structure
+    # Format the RGB values as a hex string
+    color_hex = f"{color.rgb[0]:02X}{color.rgb[1]:02X}{color.rgb[2]:02X}"
+
+    # Define the border XML structure with the formatted color
     border_xml = (
         f'<a:lnW w="{border_width}">'
         f'  <a:solidFill>'
-        f'    <a:srgbClr val="{color.rgb_hex[2:]}" />'  # Apply color in hex without the '#'
+        f'    <a:srgbClr val="{color_hex}" />'
         f'  </a:solidFill>'
         f'  <a:prstDash val="solid"/>'
         f'</a:lnW>'
     )
 
-    # Add the border to each side of the cell
-    cell_top = parse_xml(f'<a:tcPr {nsdecls("a")}>{border_xml}</a:tcPr>')
-    cell._element.get_or_add_tcPr().append(cell_top)
+    tc = cell._tc  # Access the underlying XML of the table cell
+    tcPr = tc.get_or_add_tcPr()  # Access the cell's properties
 
-def add_table_borders(table):
+    # Apply the border to each side
+    tcPr.append(parse_xml(f'<a:lnL {nsdecls("a")}>{border_xml}</a:lnL>'))  # Left border
+    tcPr.append(parse_xml(f'<a:lnR {nsdecls("a")}>{border_xml}</a:lnR>'))  # Right border
+    tcPr.append(parse_xml(f'<a:lnT {nsdecls("a")}>{border_xml}</a:lnT>'))  # Top border
+    tcPr.append(parse_xml(f'<a:lnB {nsdecls("a")}>{border_xml}</a:lnB>'))  # Bottom border
+
+def apply_borders_to_table(table):
     """
-    Adds borders to all cells in a table.
-    
+    Apply borders to all cells in a dynamically created table.
+
     Parameters:
-    table (Table): The table object where borders will be added to all cells.
-    
-    Returns:
-    None: Modifies the table's cells in place.
+    table: The table object created dynamically on the slide.
     """
-    # Iterate through all rows and columns in the table
     for row in table.rows:
         for cell in row.cells:
-            set_cell_border(cell)
+            set_cell_border(cell)  # Apply border to each cell
 
-# Example usage:
-table_shape = slide.shapes[-1]  # Assuming the table is the last shape added
-table = table_shape.table  # Access the table object
+# Example usage within your existing loop for table creation:
+table = slide['overview' + str(I)].shapes.add_table(rows=6, cols=6, x=0, y=0, cx=Inches(6), cy=Inches(4)).table
 
-# Apply borders to all cells in the table
-add_table_borders(table)
+# Assuming you are looping through columns and rows to create cells:
+for row_idx in range(6):  # Assuming 6 rows
+    for col_idx in range(6):  # Assuming 6 columns
+        cell = table.cell(row_idx, col_idx)
+        # Here you can add data to the cell as you need, e.g., cell.text = "Data"
+        set_cell_border(cell)  # Apply borders to each cell
+
+# Alternatively, apply borders to the entire table:
+apply_borders_to_table(table)
